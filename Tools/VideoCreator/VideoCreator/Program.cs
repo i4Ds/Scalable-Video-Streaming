@@ -27,7 +27,7 @@ namespace VideoCreator
         {
 
             Stopwatch resizeTimer = Stopwatch.StartNew();
-            //ResizeImages(IN_DIR);
+            ResizeImages(IN_DIR);
             resizeTimer.Stop();
             
             Stopwatch videoTimer = Stopwatch.StartNew();
@@ -77,7 +77,7 @@ namespace VideoCreator
                                 {
                                     startTime = DateTime.ParseExact(fileName.Substring(0, DATE_FORMAT.Length), DATE_FORMAT, CultureInfo.InvariantCulture);
                                 }
-                                movieFrames[frameIndex] = Accord.Imaging.Image.FromFile(Path.Combine(curDir, $"{fileName}_{curSize}.bmp"));
+                                movieFrames[frameIndex] = Accord.Imaging.Image.FromFile(Path.Combine(curDir, $"{fileName}_{curSize}.png"));
                                 frameIndex++;
 
                                 if (frameIndex >= MOVIE_LENGTH)
@@ -115,7 +115,18 @@ namespace VideoCreator
 
         private static void CreateMovies(Bitmap[] movieFrames, int movieWidth, int resolution, string outDirectory, int offset, DateTime startTime)
         {
-            string outDir = Path.Combine(outDirectory, "SDO", "AIA", "171", resolution.ToString(), offset.ToString());
+            string outDir = Path.Combine(outDirectory,
+                resolution.ToString(),
+                offset.ToString(),
+
+                startTime.Year.ToString(), 
+                startTime.Month.ToString(), 
+                startTime.Day.ToString(), 
+                startTime.Hour.ToString(),
+                startTime.Minute.ToString(),
+                startTime.Second.ToString(),
+
+                "SDO_AIA_171");
             if(!Directory.Exists(outDir))
             {
                 Directory.CreateDirectory(outDir);
@@ -130,12 +141,11 @@ namespace VideoCreator
                     // ToDo: DAte info also as folder Hierarchy?
                     using (VideoFileWriter video = new VideoFileWriter())
                     {
-                        video.Open(Path.Combine(outDir, $"{startTime.ToString(DATE_FORMAT)}_{x}_{y}.mp4"), movieWidth, movieWidth, 30, VideoCodec.H264, 1024 * 1024);
+                        video.Open(Path.Combine(outDir, $"{startTime.ToString("FF")}__{x}_{y}.mp4"), movieWidth, movieWidth, 30, VideoCodec.H264, 1024 * 1024);
                         Rectangle region = new Rectangle(x * movieWidth, y * movieWidth, movieWidth, movieWidth);
 
                         for (int i = 0; i < movieFrames.Length; i++)
                         {
-                            //Bitmap frame = movieFrames[i].Clone(region, movieFrames[i].PixelFormat);
                             using (Bitmap frame = movieFrames[i].Clone(region, movieFrames[i].PixelFormat))
                             {
                                 video.WriteVideoFrame(frame);
@@ -176,7 +186,7 @@ namespace VideoCreator
                 foreach(int size in SIZES)
                 {
                     string smallDirectory = Path.Combine(directory, size.ToString());
-                    string smallFileName = Path.Combine(smallDirectory, $"{filename}_{size}.bmp");
+                    string smallFileName = Path.Combine(smallDirectory, $"{filename}_{size}.png");
 
                     if (!File.Exists(smallFileName))
                     {
@@ -185,16 +195,13 @@ namespace VideoCreator
                             if(image.Width != size)
                             {
                                 image.Resize(size, size);
+                            }
 
-                                using (Bitmap smallImage = image.ToBitmap(ImageFormat.Bmp))
-                                {
-                                    smallImage.Save(smallFileName, ImageFormat.Bmp);
-                                }
-                            }
-                            else
-                            {
-                                File.Copy(file, smallFileName);
-                            }
+                            image.ColorType = ImageMagick.ColorType.Grayscale;
+                            image.ColorSpace = ImageMagick.ColorSpace.Gray;
+                            image.Depth = 8;
+
+                            image.Write(smallFileName);
                         }
                     }
                 }

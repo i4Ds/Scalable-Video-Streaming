@@ -1,0 +1,58 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+</head>
+<body onload="main()">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://code.createjs.com/preloadjs-0.6.2.min.js"></script>
+    <script src="lib/twgl-full.js"></script>
+
+    <script src="lib/Decoder.js"></script>
+    <script src="lib/mp4.js"></script>
+    <script src="lib/stream.js"></script>
+
+    <script src="js/Renderer.js"></script>
+    <script src="js/Segment.js"></script>
+
+    <script id="vs" type="x-shader/x-vertex">
+        attribute vec4 vPosition;
+        attribute vec2 vTexCoord;
+
+        varying vec2 texCoord;
+
+        void main(void)
+        {
+        gl_Position = vPosition;
+        texCoord = vTexCoord;
+        }
+    </script>
+    <script id="fs" type="x-shader/x-fragment">
+        precision mediump float;
+        varying vec2 texCoord;
+        uniform sampler2D segmentTexture;
+
+        void main(void)
+        {
+        gl_FragColor = texture2D(segmentTexture, texCoord);
+        }
+    </script>
+
+    <canvas id="hack" width="128" height="128"></canvas>
+    <canvas id="canvas" width="512" height="512"></canvas>
+
+    <table>
+        <tr>
+            <td><video controls="controls" autoplay loop><source src="2012_08_31__18_59_59_35_0_4.mp4" type="video/mp4" /></video></td>
+            <td><video controls="controls" autoplay loop><source src="2012_08_31__18_59_59_35_1_4.mp4" type="video/mp4" /></video></td>
+            <td><video controls="controls" autoplay loop><source src="2012_08_31__18_59_59_35_2_4.mp4" type="video/mp4" /></video></td>
+        </tr>
+        <tr>
+            <td><video controls="controls" autoplay loop><source src="2012_08_31__18_59_59_35_0_5.mp4" type="video/mp4" /></video></td>
+            <td><video controls="controls" autoplay loop><source src="2012_08_31__18_59_59_35_1_5.mp4" type="video/mp4" /></video></td>
+            <td><video controls="controls" autoplay loop><source src="2012_08_31__18_59_59_35_2_5.mp4" type="video/mp4" /></video></td>
+        </tr>
+    </table>
+</body>
+</html>
