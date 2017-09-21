@@ -195,13 +195,17 @@ namespace VideoCreator
                             if(image.Width != size)
                             {
                                 image.Resize(size, size);
+
+                                image.ColorType = ImageMagick.ColorType.Grayscale;
+                                image.ColorSpace = ImageMagick.ColorSpace.Gray;
+                                image.Depth = 8;
+
+                                image.Write(smallFileName);
                             }
-
-                            image.ColorType = ImageMagick.ColorType.Grayscale;
-                            image.ColorSpace = ImageMagick.ColorSpace.Gray;
-                            image.Depth = 8;
-
-                            image.Write(smallFileName);
+                            else
+                            {
+                                File.Copy(file, smallFileName);
+                            }
                         }
                     }
                 }

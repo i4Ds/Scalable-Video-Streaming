@@ -15,7 +15,7 @@ function main() {
         new Segment("35__1_4.mp4", 1024, 1, 4),
         new Segment("35__1_5.mp4", 1024, 1, 5),
         new Segment("35__2_4.mp4", 1024, 2, 4),
-        new Segment("35__2_5.mp4", 1024, 2, 5)
+        new Segment("35__2_5.mp4", 1024, 2, 5),
     ];
 
     segments.forEach(function (seg) {
@@ -26,7 +26,7 @@ function main() {
     function render(time) {
         time *= 0.001;
 
-        var frameIndex = Math.round(time * 10) % 64;
+        var frameIndex = Math.round(time * 32) % 64;
 
 
 
@@ -36,9 +36,7 @@ function main() {
 
         segments.forEach(function (segment) {
             segment.render(gl, frameIndex, programInfo);
-        })
-
-        //console.log(segments[5].counter);
+        });
 
         requestAnimationFrame(render);
     }

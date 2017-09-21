@@ -1,4 +1,6 @@
-﻿class Segment {
+﻿"use strict";
+
+class Segment {
     constructor(video, resolution, x, y) {
         this.videoUrl = video;
         this.counter = 0;
@@ -8,7 +10,7 @@
         this.x = x;
         this.y = y;
 
-        var test = (resolution / 128);
+        var test = resolution / 128;
         var scale = 1 / test;
 
         var offX = scale * (2*x - test);
@@ -60,6 +62,11 @@
 
             self.frames[self.counter] = data;
             self.counter++;
+            
+            if (self.counter >= 64) {
+                delete self.reader;
+                delete self.avc;
+            }
         };
 
         function onVideoLoaded(event) {
@@ -73,9 +80,7 @@
 
 // source: https://github.com/mbebenita/Broadway/issues/68#issuecomment-99754002
     decode(rawData) {
-        var tmp = new Bytestream(rawData);
-
-        this.reader = new MP4Reader(tmp);
+        this.reader = new MP4Reader(new Bytestream(rawData));
         this.reader.read();
 
         var video = this.reader.tracks[1];
