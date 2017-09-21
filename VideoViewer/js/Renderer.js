@@ -9,49 +9,36 @@ function main() {
 
     var programInfo = twgl.createProgramInfo(gl, ["vs", "fs"]);
 
-    var arrays = {
-        vPosition: [-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0],
-        vTexCoord: [0,0,  0,1,  1,1,  1,0],
-        indices: [0, 1, 2,  0, 2, 3],
-    };
-    var bufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
+    var segments = [
+        new Segment("35__0_4.mp4", 1024, 0, 4),
+        new Segment("35__0_5.mp4", 1024, 0, 5),
+        new Segment("35__1_4.mp4", 1024, 1, 4),
+        new Segment("35__1_5.mp4", 1024, 1, 5),
+        new Segment("35__2_4.mp4", 1024, 2, 4),
+        new Segment("35__2_5.mp4", 1024, 2, 5)
+    ];
 
-
-    var seg = new Segment("2012_08_31__18_59_59_35_2_5.mp4", document.getElementById("hack").getContext("2d"));
-    seg.init();
+    segments.forEach(function (seg) {
+        seg.init();
+        
+    });
     
     function render(time) {
         time *= 0.001;
 
-        var frameIndex = Math.round(time * 10) % 60;
+        var frameIndex = Math.round(time * 10) % 64;
 
-        var tex;
-        if (seg.counter > frameIndex) 
-        {
-            tex = twgl.createTexture(gl, {
-                target: gl.TEXTURE_2D,
-                src: seg.frames[frameIndex].data,
-            });
-        }
-        else
-        {
-            tex = twgl.createTexture(gl, {
-                target: gl.TEXTURE_2D,
-                src: "clover.jpg",
-            });
-        }
 
-        var uniforms = {
-            segmentTexture: tex,
-        };
 
         twgl.resizeCanvasToDisplaySize(gl.canvas);
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-
         gl.useProgram(programInfo.program);
-        twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo);
-        twgl.setUniforms(programInfo, uniforms);
-        twgl.drawBufferInfo(gl, bufferInfo);
+
+        segments.forEach(function (segment) {
+            segment.render(gl, frameIndex, programInfo);
+        })
+
+        //console.log(segments[5].counter);
 
         requestAnimationFrame(render);
     }

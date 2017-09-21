@@ -21,7 +21,7 @@ namespace VideoCreator
         private const string IN_DIR = @"D:\Data\Scalable-Video-Streaming\2h set\bmp";
         private const string OUT_DIR  = @"D:\Data\Scalable-Video-Streaming\2h set\video";
 
-        const int MOVIE_LENGTH = 60;
+        const int MOVIE_LENGTH = 64;
 
         static void Main(string[] args)
         {
@@ -77,7 +77,7 @@ namespace VideoCreator
                                 {
                                     startTime = DateTime.ParseExact(fileName.Substring(0, DATE_FORMAT.Length), DATE_FORMAT, CultureInfo.InvariantCulture);
                                 }
-                                movieFrames[frameIndex] = Accord.Imaging.Image.FromFile(Path.Combine(curDir, $"{fileName}_{curSize}.png"));
+                                movieFrames[frameIndex] = Accord.Imaging.Image.FromFile(Path.Combine(curDir, $"{fileName}_{curSize}.bmp"));
                                 frameIndex++;
 
                                 if (frameIndex >= MOVIE_LENGTH)
@@ -141,7 +141,7 @@ namespace VideoCreator
                     // ToDo: DAte info also as folder Hierarchy?
                     using (VideoFileWriter video = new VideoFileWriter())
                     {
-                        video.Open(Path.Combine(outDir, $"{startTime.ToString("FF")}__{x}_{y}.mp4"), movieWidth, movieWidth, 30, VideoCodec.H264, 1024 * 1024);
+                        video.Open(Path.Combine(outDir, $"{startTime.ToString("FF")}__{x}_{y}.mp4"), movieWidth, movieWidth, 32, VideoCodec.H264, 1024 * 1024);
                         Rectangle region = new Rectangle(x * movieWidth, y * movieWidth, movieWidth, movieWidth);
 
                         for (int i = 0; i < movieFrames.Length; i++)
@@ -186,7 +186,7 @@ namespace VideoCreator
                 foreach(int size in SIZES)
                 {
                     string smallDirectory = Path.Combine(directory, size.ToString());
-                    string smallFileName = Path.Combine(smallDirectory, $"{filename}_{size}.png");
+                    string smallFileName = Path.Combine(smallDirectory, $"{filename}_{size}.bmp");
 
                     if (!File.Exists(smallFileName))
                     {
