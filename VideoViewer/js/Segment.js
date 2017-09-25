@@ -1,4 +1,4 @@
-﻿"use strict";
+﻿//"use strict";
 
 class Segment {
     constructor(video, resolution, x, y) {
@@ -27,9 +27,15 @@ class Segment {
         };
     }
 
-    render(gl, frameIndex, programInfo) {
+    render(gl, frameIndex, programInfo, lutTex) {
         if (this.counter > frameIndex) {
+
             var tex = twgl.createTexture(gl, {
+                width: 128,
+                height: 128,
+                // gl.R8 only works in webgl 2.0
+                //internalFormat: gl.R8,
+                internalFormat: gl.LUMINANCE,
                 target: gl.TEXTURE_2D,
                 src: this.frames[frameIndex],
             });
@@ -50,15 +56,11 @@ class Segment {
         var self = this;
         this.avc = new Decoder();
         this.avc.onPictureDecoded = function (buffer, width, height, infos) {
-            var data = new Uint8Array(128 * 128 * 4);
-            var index = 0;
-            for (var i = 0; i < 128 * 128; i++) {
-                for (var k = 0; k < 3; k++) {
-                    data[index++] = buffer[i];
-                }
-                // alpha
-                data[index++] = 255;
-            }
+            var data = new Uint8Array(buffer, 0, 128 * 128);
+            //var index = 0;
+            //for (var i = 0; i < 128 * 128; i++) {
+            //    data[index++] = buffer[i];
+            //}
 
             self.frames[self.counter] = data;
             self.counter++;

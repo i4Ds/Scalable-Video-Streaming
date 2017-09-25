@@ -57,7 +57,7 @@ namespace VideoCreator
             Bitmap[] movieFrames = new Bitmap[MOVIE_LENGTH];
             DateTime startTime = DateTime.Now;
 
-            // RIP time-complexity
+            // RIP complexity
             foreach (int curSize in SIZES)
             {
                 int curOffset = 1;
@@ -77,7 +77,7 @@ namespace VideoCreator
                                 {
                                     startTime = DateTime.ParseExact(fileName.Substring(0, DATE_FORMAT.Length), DATE_FORMAT, CultureInfo.InvariantCulture);
                                 }
-                                movieFrames[frameIndex] = Accord.Imaging.Image.FromFile(Path.Combine(curDir, $"{fileName}_{curSize}.bmp"));
+                                movieFrames[frameIndex] = Accord.Imaging.Image.FromFile(curSize == 4096 ? file : Path.Combine(curDir, $"{fileName}_{curSize}.bmp"));
                                 frameIndex++;
 
                                 if (frameIndex >= MOVIE_LENGTH)
@@ -174,6 +174,7 @@ namespace VideoCreator
                 }
             }
 
+            int counter = 0;
             foreach(var file in Directory.EnumerateFiles(directory))
             {
                 if (!String.Equals(".bmp", Path.GetExtension(file), StringComparison.OrdinalIgnoreCase))
@@ -202,15 +203,56 @@ namespace VideoCreator
 
                                 image.Write(smallFileName);
                             }
-                            else
-                            {
-                                File.Copy(file, smallFileName);
-                            }
+                            //else
+                            //{
+                            //    File.Copy(file, smallFileName);
+                            //}
                         }
                     }
                 }
+                counter++;
+
+                if(counter % 64 == 0)
+                {
+                    Console.WriteLine(counter);
+                }
             }
         }
+
+        /// <summary>
+        /// Resize the image to the specified width and height.
+        /// </summary>
+        /// <param name="image">The image to resize.</param>
+        /// <param name="width">The width to resize to.</param>
+        /// <param name="height">The height to resize to.</param>
+        /// <returns>The resized image.</returns>
+        public static Bitmap ResizeImage(Bitmap image, int width, int height)
+        {
+            // taken from https://stackoverflow.com/questions/1922040/resize-an-image-c-sharp/24199315#24199315
+            var destRect = new Rectangle(0, 0, width, height);
+            var destImage = new Bitmap(width, height);
+
+            destImage.SetResolution(image.HorizontalResolution, image.VerticalResolution);
+
+            using (var graphics = Graphics.FromImage(destImage))
+            {
+                graphics.CompositingMode = CompositingMode.SourceCopy;
+                graphics.CompositingQuality = CompositingQuality.HighQuality;
+                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                graphics.SmoothingMode = SmoothingMode.HighQuality;
+                graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+                using (var wrapMode = new ImageAttributes())
+                {
+                    wrapMode.SetWrapMode(WrapMode.TileFlipXY);
+                    graphics.DrawImage(image, destRect, 0, 0, image.Width, image.Height, GraphicsUnit.Pixel, wrapMode);
+                }
+            }
+
+            return destImage;
+        }
+
+
 
         static void Test()
         {
@@ -276,39 +318,6 @@ namespace VideoCreator
 
             Console.WriteLine($"Created Video in {elapsedTime.Elapsed} seconds");
             Console.ReadLine();
-        }
-
-        /// <summary>
-        /// Resize the image to the specified width and height.
-        /// </summary>
-        /// <param name="image">The image to resize.</param>
-        /// <param name="width">The width to resize to.</param>
-        /// <param name="height">The height to resize to.</param>
-        /// <returns>The resized image.</returns>
-        public static Bitmap ResizeImage(Bitmap image, int width, int height)
-        {
-            // taken from https://stackoverflow.com/questions/1922040/resize-an-image-c-sharp/24199315#24199315
-            var destRect = new Rectangle(0, 0, width, height);
-            var destImage = new Bitmap(width, height);
-
-            destImage.SetResolution(image.HorizontalResolution, image.VerticalResolution);
-
-            using (var graphics = Graphics.FromImage(destImage))
-            {
-                graphics.CompositingMode = CompositingMode.SourceCopy;
-                graphics.CompositingQuality = CompositingQuality.HighQuality;
-                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                graphics.SmoothingMode = SmoothingMode.HighQuality;
-                graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-
-                using (var wrapMode = new ImageAttributes())
-                {
-                    wrapMode.SetWrapMode(WrapMode.TileFlipXY);
-                    graphics.DrawImage(image, destRect, 0, 0, image.Width, image.Height, GraphicsUnit.Pixel, wrapMode);
-                }
-            }
-
-            return destImage;
         }
     }
 }

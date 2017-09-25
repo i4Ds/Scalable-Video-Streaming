@@ -1,7 +1,9 @@
 ﻿"use strict";
 
 function main() {
-    var gl = document.getElementById("canvas").getContext("webgl2");
+    // IE, Edge, Safari only support webgl 1.0 as of 25.09.2017
+    //var gl = document.getElementById("canvas").getContext("webgl2");
+    var gl = document.getElementById("canvas").getContext("experimental-webgl");
     if (!gl) {
         alert("Sorry, this example requires WebGL 2.0");  // eslint-disable-line
         return;
@@ -20,7 +22,6 @@ function main() {
 
     segments.forEach(function (seg) {
         seg.init();
-        
     });
     
     function render(time) {
