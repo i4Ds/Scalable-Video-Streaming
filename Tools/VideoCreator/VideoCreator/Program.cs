@@ -16,18 +16,19 @@ namespace VideoCreator
 {
     class Program
     {
-        private static readonly int[] SIZES = new[]{ 128, 256, 512, 1024, 2048, 4096 };
+        private static readonly int[] SIZES = new[]{ 512, 1024, 2048, 4096 };
         private const string DATE_FORMAT = "yyyy_MM_dd__HH_mm_ss_FF";
-        private const string IN_DIR = @"D:\Data\Scalable-Video-Streaming\2h set\bmp";
-        private const string OUT_DIR  = @"D:\Data\Scalable-Video-Streaming\2h set\video";
+        private const string IN_DIR = @"C:\Users\Roman Bolzern\Documents\GitHub\Scalable-Video-Streaming\Data\bmp";
+        private const string OUT_DIR  = @"C:\Users\Roman Bolzern\Documents\GitHub\Scalable-Video-Streaming\Data\video512";
 
         const int MOVIE_LENGTH = 64;
+        const int MOVIE_WIDTH = 512;
 
         static void Main(string[] args)
         {
 
             Stopwatch resizeTimer = Stopwatch.StartNew();
-            ResizeImages(IN_DIR);
+            //ResizeImages(IN_DIR);
             resizeTimer.Stop();
             
             Stopwatch videoTimer = Stopwatch.StartNew();
@@ -40,9 +41,9 @@ namespace VideoCreator
             Console.ReadLine();
         }
 
-        static void CreateVideoTree(string directory, string outDirectory, int movieWidth = 128)
+        static void CreateVideoTree(string inDirectory, string outDirectory)
         {
-            if (!Directory.Exists(directory))
+            if (!Directory.Exists(inDirectory))
             {
                 throw new ArgumentException();
             }
@@ -51,24 +52,26 @@ namespace VideoCreator
                 Directory.CreateDirectory(outDirectory);
             }
 
-            int nrFiles = Directory.EnumerateFiles(directory).Count();
+            int nrFiles = Directory.EnumerateFiles(inDirectory).Count();
             //int curSize = 128; // 4 * 1024;
 
             Bitmap[] movieFrames = new Bitmap[MOVIE_LENGTH];
             DateTime startTime = DateTime.Now;
 
+            var bmpFiles = Directory.EnumerateFiles(inDirectory).ToArray();
+
             // RIP complexity
             foreach (int curSize in SIZES)
             {
                 int curOffset = 1;
-                string curDir = Path.Combine(directory, curSize.ToString());
+                string curDir = Path.Combine(inDirectory, curSize.ToString());
                 while (curOffset * MOVIE_LENGTH <= nrFiles)
                 {
                     int frameIndex = 0;
                     int fileIndex = 0;
                     try
                     {
-                        foreach (string file in Directory.EnumerateFiles(directory))
+                        foreach (string file in bmpFiles)
                         {
                             if (fileIndex % curOffset == 0)
                             {
@@ -82,7 +85,7 @@ namespace VideoCreator
 
                                 if (frameIndex >= MOVIE_LENGTH)
                                 {
-                                    CreateMovies(movieFrames, movieWidth, curSize, outDirectory, curOffset, startTime);
+                                    CreateMovies(movieFrames, curSize, outDirectory, curOffset, startTime);
                                     frameIndex = 0;
 
                                     for (int i = 0; i < movieFrames.Length; i++)
@@ -98,11 +101,15 @@ namespace VideoCreator
 
                         curOffset *= 2;
                     }
+                    catch(Exception e)
+                    {
+                        Console.WriteLine(e.Message);
+                    }
                     finally
                     {
                         if (frameIndex != 0)
                         {
-                            for (int i = 0; i <= movieFrames.Length; i++)
+                            for (int i = 0; i < movieFrames.Length; i++)
                             {
                                 movieFrames[i]?.Dispose();
                                 movieFrames[i] = null;
@@ -113,7 +120,7 @@ namespace VideoCreator
             }
         }
 
-        private static void CreateMovies(Bitmap[] movieFrames, int movieWidth, int resolution, string outDirectory, int offset, DateTime startTime)
+        private static void CreateMovies(Bitmap[] movieFrames, int resolution, string outDirectory, int offset, DateTime startTime)
         {
             string outDir = Path.Combine(outDirectory,
                 resolution.ToString(),
@@ -132,7 +139,7 @@ namespace VideoCreator
                 Directory.CreateDirectory(outDir);
             }
 
-            int slizes = resolution / movieWidth;
+            int slizes = resolution / MOVIE_WIDTH;
 
             for(int x = 0; x < slizes; x++)
             {
@@ -141,8 +148,8 @@ namespace VideoCreator
                     // ToDo: DAte info also as folder Hierarchy?
                     using (VideoFileWriter video = new VideoFileWriter())
                     {
-                        video.Open(Path.Combine(outDir, $"{startTime.ToString("FF")}__{x}_{y}.mp4"), movieWidth, movieWidth, 32, VideoCodec.H264, 1024 * 1024);
-                        Rectangle region = new Rectangle(x * movieWidth, y * movieWidth, movieWidth, movieWidth);
+                        video.Open(Path.Combine(outDir, $"{startTime.ToString("FF")}__{x}_{y}.mp4"), MOVIE_WIDTH, MOVIE_WIDTH, 32, VideoCodec.H264, 1024 * 1024, AudioCodec.None, 0, 0, 0);
+                        Rectangle region = new Rectangle(x * MOVIE_WIDTH, y * MOVIE_WIDTH, MOVIE_WIDTH, MOVIE_WIDTH);
 
                         for (int i = 0; i < movieFrames.Length; i++)
                         {
@@ -219,6 +226,7 @@ namespace VideoCreator
             }
         }
 
+        /*
         /// <summary>
         /// Resize the image to the specified width and height.
         /// </summary>
@@ -252,7 +260,7 @@ namespace VideoCreator
             return destImage;
         }
 
-
+        */
 
         static void Test()
         {
