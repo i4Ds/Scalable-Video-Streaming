@@ -158,11 +158,11 @@ namespace VideoCreator
                         {
                             using (Bitmap frame = NewGrayscale(movieFrames[i])) //.Clone(region, movieFrames[i].PixelFormat)
                             {
-                                Console.Write(i + ",");
+                                //Console.Write(i + ",");
                                 video.WriteVideoFrame(frame);
                             }
                         }
-                        Console.WriteLine();
+                        //Console.WriteLine();
 
                         video.Flush();
                     }
@@ -243,14 +243,10 @@ namespace VideoCreator
             byte[] bytes = new byte[numBytes];
             //copy the RGB values into the array
 
-            //Marshal.Copy(ptr, bytes, 0, numBytes);
-
             // read every 3rd byte
             int skip = data.Stride / data.Width;
             for (int i = 0; i < original.Width * original.Height; i++)
-            {
                 Marshal.Copy(IntPtr.Add(ptr, i * skip), bytes, i, 1);
-            }
 
             original.UnlockBits(data);
 
