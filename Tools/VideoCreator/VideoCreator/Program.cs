@@ -148,16 +148,18 @@ namespace VideoCreator
                     // ToDo: DAte info also as folder Hierarchy?
                     using (VideoFileWriter video = new VideoFileWriter())
                     {
-                        video.Open(Path.Combine(outDir, $"{startTime.ToString("FF")}__{x}_{y}.mp4"), MOVIE_WIDTH, MOVIE_WIDTH, 32, VideoCodec.H264, 1024 * 1024, AudioCodec.None, 0, 0, 0);
+                        video.Open(Path.Combine(outDir, $"{startTime.ToString("FF")}__{x}_{y}.mp4"), MOVIE_WIDTH, MOVIE_WIDTH, 32, VideoCodec.H264, 1024 * 1024);
                         Rectangle region = new Rectangle(x * MOVIE_WIDTH, y * MOVIE_WIDTH, MOVIE_WIDTH, MOVIE_WIDTH);
 
                         for (int i = 0; i < movieFrames.Length; i++)
                         {
                             using (Bitmap frame = movieFrames[i].Clone(region, movieFrames[i].PixelFormat))
                             {
+                                Console.Write(i + ",");
                                 video.WriteVideoFrame(frame);
                             }
                         }
+                        Console.WriteLine();
 
                         video.Flush();
                     }
