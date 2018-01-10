@@ -63,6 +63,8 @@ namespace VideoCreator
 
             var bmpFiles = Directory.EnumerateFiles(inDirectory).ToArray();
 
+            // TODO: Different buildup. No need to load and convert same image several times...
+
             // RIP complexity
             foreach (int curSize in SIZES)
             {
