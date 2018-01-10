@@ -17,10 +17,10 @@ namespace VideoCreator
 {
     class Program
     {
-        private static readonly int[] SIZES = new[] { 1024, 2048, 4096 };
+        private static readonly int[] SIZES = new[] { 2048, 4096 };
         private const string DATE_FORMAT = "yyyy_MM_dd__HH_mm_ss_FF";
-        private const string IN_DIR = @"C:\Users\Roman Bolzern\Documents\GitHub\Scalable-Video-Streaming\Data\bmp";
-        private const string OUT_DIR = @"C:\Users\Roman Bolzern\Documents\GitHub\Scalable-Video-Streaming\Data\video512";
+        private const string IN_DIR = @"C:\Users\Roman Bolzern\Documents\GitHub\Scalable-Video-Streaming\Viewer\Data\bmp";
+        private const string OUT_DIR = @"C:\Users\Roman Bolzern\Documents\GitHub\Scalable-Video-Streaming\Viewer\Data\video512";
 
         const int MOVIE_LENGTH = 64;
         const int MOVIE_WIDTH = 512;
@@ -44,6 +44,8 @@ namespace VideoCreator
 
         static void CreateVideoTree(string inDirectory, string outDirectory)
         {
+            // TODO: FFMPEG itself is also able to make grayscale videos, to create subvideos (video trees), etc. Could potentially be faster.
+
             if (!Directory.Exists(inDirectory))
             {
                 throw new ArgumentException();
@@ -83,6 +85,7 @@ namespace VideoCreator
                                 }
                                 var fname = curSize == 4096 ? file : Path.Combine(curDir, $"{fileName}_{curSize}.bmp");
                                 //movieFrames[frameIndex] = Accord.Imaging.Image.FromFile(fname);
+                                Console.WriteLine($"Grayscale conversion: { fileName }_{ curSize }.bmp");
                                 movieFrames[frameIndex] = NewGrayscale(new Bitmap(fname));
                                 frameIndex++;
 
@@ -156,7 +159,7 @@ namespace VideoCreator
 
                         for (int i = 0; i < movieFrames.Length; i++)
                         {
-                            using (Bitmap frame = movieFrames[i].Clone(region, movieFrames[i].PixelFormat)) //.Clone(region, movieFrames[i].PixelFormat)
+                            using (Bitmap frame = movieFrames[i].Clone(region, movieFrames[i].PixelFormat))
                             {
                                 //Console.Write(i + ",");
                                 video.WriteVideoFrame(frame);
@@ -231,34 +234,38 @@ namespace VideoCreator
             }
         }
 
-        public static Bitmap NewGrayscale(Bitmap original)
+        public unsafe static Bitmap NewGrayscale(Bitmap original)
         {
             // https://stackoverflow.com/questions/12168654/image-processing-with-lockbits-alternative-to-getpixel
             Rectangle rect = new Rectangle(0, 0, original.Width, original.Height);
-            BitmapData data = original.LockBits(rect, ImageLockMode.ReadOnly, original.PixelFormat);
-            IntPtr ptr = data.Scan0;
+            BitmapData data = original.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
 
             //declare an array to hold the bytes of the bitmap
             int numBytes = data.Width * original.Height;
-            byte[] bytes = new byte[numBytes];
+            //byte[] bytes = new byte[numBytes];
             //copy the RGB values into the array
 
             // read every 3rd byte
             int skip = data.Stride / data.Width;
-            for (int i = 0; i < original.Width * original.Height; i++)
-                Marshal.Copy(IntPtr.Add(ptr, i * skip), bytes, i, 1);
+            int sizeOrig = original.Width * original.Height;
 
-            original.UnlockBits(data);
+            //for (int i = 0; i < sizeOrig; i++)
+            //    Marshal.Copy(IntPtr.Add(ptr, i * skip), bytes, i, 1);
 
+            byte* pSource = (byte*)data.Scan0;
 
-            // here you could potentially make byte adjustments (brightness adjustments, etc.)
+            // Copy the specified number of bytes from source to target.
+            /*for (int i = 0; i < sizeOrig; i++, pSource+=4)
+                bytes[i] = *pSource;
+
+            original.UnlockBits(data);*/
 
 
             Bitmap grayBmp = new Bitmap(original.Width, original.Height, PixelFormat.Format8bppIndexed);
             Rectangle grayRect = new Rectangle(0, 0, grayBmp.Width, grayBmp.Height);
             BitmapData grayData = grayBmp.LockBits(grayRect, ImageLockMode.ReadWrite, grayBmp.PixelFormat);
             IntPtr grayPtr = grayData.Scan0;
-            int grayBytes = grayData.Stride * grayBmp.Height;
+            //int grayBytes = grayData.Stride * grayBmp.Height;
 
             ColorPalette pal = grayBmp.Palette;
 
@@ -270,7 +277,18 @@ namespace VideoCreator
             grayBmp.Palette = pal;
 
             // copy generated grayscale pixels into new grayscale bitmap
-            Marshal.Copy(bytes, 0, grayPtr, grayBytes);
+            byte* pDest = (byte*)grayData.Scan0;
+            for (int i = 0; i < sizeOrig; i++, pSource += 4, pDest++)
+            {
+                //bytes[i] = *pSource;
+                *pDest = *pSource;
+            }
+
+            original.UnlockBits(data);
+
+
+
+            //Marshal.Copy(bytes, 0, grayPtr, grayBytes);
 
             grayBmp.UnlockBits(grayData);
             return grayBmp;
