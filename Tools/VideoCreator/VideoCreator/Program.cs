@@ -17,7 +17,7 @@ namespace VideoCreator
 {
     class Program
     {
-        private static readonly int[] SIZES = new[] { 512, 1024, 2048, 4096 };
+        private static readonly int[] SIZES = new[] { 1024, 2048, 4096 };
         private const string DATE_FORMAT = "yyyy_MM_dd__HH_mm_ss_FF";
         private const string IN_DIR = @"C:\Users\Roman Bolzern\Documents\GitHub\Scalable-Video-Streaming\Data\bmp";
         private const string OUT_DIR = @"C:\Users\Roman Bolzern\Documents\GitHub\Scalable-Video-Streaming\Data\video512";
@@ -83,7 +83,7 @@ namespace VideoCreator
                                 }
                                 var fname = curSize == 4096 ? file : Path.Combine(curDir, $"{fileName}_{curSize}.bmp");
                                 //movieFrames[frameIndex] = Accord.Imaging.Image.FromFile(fname);
-                                movieFrames[frameIndex] = new Bitmap(fname);
+                                movieFrames[frameIndex] = NewGrayscale(new Bitmap(fname));
                                 frameIndex++;
 
                                 if (frameIndex >= MOVIE_LENGTH)
@@ -156,7 +156,7 @@ namespace VideoCreator
 
                         for (int i = 0; i < movieFrames.Length; i++)
                         {
-                            using (Bitmap frame = NewGrayscale(movieFrames[i])) //.Clone(region, movieFrames[i].PixelFormat)
+                            using (Bitmap frame = movieFrames[i].Clone(region, movieFrames[i].PixelFormat)) //.Clone(region, movieFrames[i].PixelFormat)
                             {
                                 //Console.Write(i + ",");
                                 video.WriteVideoFrame(frame);
@@ -249,6 +249,9 @@ namespace VideoCreator
                 Marshal.Copy(IntPtr.Add(ptr, i * skip), bytes, i, 1);
 
             original.UnlockBits(data);
+
+
+            // here you could potentially make byte adjustments (brightness adjustments, etc.)
 
 
             Bitmap grayBmp = new Bitmap(original.Width, original.Height, PixelFormat.Format8bppIndexed);
