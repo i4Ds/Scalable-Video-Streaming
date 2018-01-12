@@ -1,0 +1,188 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <title>HelioStreamer POC</title>
+    <script src="lib/jquery-3.2.1.min.js"></script>
+    <script src="lib/three.js"></script>
+    <script src="lib/three/Detector.js"></script>
+    <script src="lib/three/TrackballControls.js"></script>
+    <script src="js/WebGLPlayer.js"></script>
+    <script src="lib/stats.min.js"></script>
+    <style>
+        body {
+            background: black;
+            margin: 0px;
+            /*overflow: hidden;*/
+        }
+
+        #info {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 300px;
+            background-color: rgba(128, 128, 128, 0.5);
+            color: white;
+            font-size: 12px;
+            z-index: 10000;
+        }
+
+        #container {
+        }
+
+        #videoContainer {
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            z-index: 10;
+            width: 4096px;
+            height: 4096px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div id="videoContainer" style="display:none;">
+
+    </div>
+    <div id="info">
+        <select id="modeDropdown">
+            <option>64spheres</option>
+            <option>1bigTexture</option>
+        </select>
+        <br />
+        <span id="modeInfo64spheres" class="modeInfos">Renders a scene with 64 spheres with one THREE.VideoTexture on each, rendering (and draw calling) 64 video textures each frame. Only one sphere has a medium vertex count, the others low.</span>
+        <span id="modeInfo1bigTexture" class="modeInfos">Renders all video frames onto one large 4096x4096 canvas, then updates the sphere with this texture. One draw call, but with large texture.</span>
+        <br />
+        <br />
+        <span id="renderStats"></span>
+        <br />
+        Show video container: <input id="showVideoContainer" type="checkbox" />
+    </div>
+</body>
+</html>
+<script type="text/javascript">
+
+    var baseUrl = "/Data/video512/4096/1/";
+    var player;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // create videos
+        var videos = [];
+        for (var i = 0; i < 64; i++) {
+            var x = i % 8;
+            var y = (i - x) / 8;
+            var v = $('<video autoplay loop>\
+                <source src="' + baseUrl + '2017/9/11/0/0/9/SDO_AIA_171/35__'+x+'_'+y+'.mp4" type="video/mp4">\
+                </video >');
+            $('#videoContainer').append(v);
+            videos.push(v[0]);
+        }
+
+        var showModeInfo = function (mode) {
+            $('.modeInfos').css('display', 'none');
+            $('#modeInfo' + mode).css('display', '');
+            $('#modeDropdown').val(mode);
+        }
+        $('#modeDropdown').change(function (ev) {
+            var mode = getMode(false);
+            showModeInfo(mode);
+            player.setMode(mode);
+        });
+        var mode = getMode(true);
+        showModeInfo(mode);
+
+        player = new WebGLPlayer(videos, mode);
+        player.animate();
+
+        $('#showVideoContainer').change(function () {
+            console.log(this.checked);
+            $('#videoContainer').css('display', this.checked ? 'block' : 'none');
+        });
+
+        /*var canvas = document.getElementById('c');
+        var context = canvas.getContext('2d');
+
+        v.addEventListener('play', function () {
+            draw(this, context);
+        }, false);*/
+
+    }, false);
+
+    /*function draw(v, c) {
+        if (v.paused || v.ended) return false;
+        c.drawImage(v, 0, 0, 512, 512);
+        // Grab the pixel data from the backing canvas
+        var idata = c.getImageData(0, 0, 512, 512);
+        var data = idata.data;
+        setTimeout(draw, 20, v, c);
+    }*/
+
+
+    /*var assetURL = '/Data/video512/512/1/2017/9/11/0/0/9/SDO_AIA_171/35__0_0.mp4';
+    // Need to be specific for Blink regarding codecs
+    // ./mp4info frag_bunny.mp4 | grep Codec
+    var mimeCodec = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
+
+    if ('MediaSource' in window && MediaSource.isTypeSupported(mimeCodec)) {
+        var mediaSource = new MediaSource();
+        //console.log(mediaSource.readyState); // closed
+        video.src = URL.createObjectURL(mediaSource);
+        mediaSource.addEventListener('sourceopen', sourceOpen);
+    } else {
+        console.error('Unsupported MIME type or codec: ', mimeCodec);
+    }
+
+
+
+    function sourceOpen(_) {
+        //console.log(this.readyState); // open
+        var mediaSource = this;
+        var sourceBuffer = mediaSource.addSourceBuffer(mimeCodec);
+        fetchAB(assetURL, function (buf) {
+            sourceBuffer.addEventListener('updateend', function (_) {
+                console.log(mediaSource.readyState);
+                //if (mediaSource.readyState != 'ended') mediaSource.endOfStream();
+                video.play();
+                //console.log(mediaSource.readyState); // ended
+            });
+            sourceBuffer.appendBuffer(new Uint8Array(buf));
+            //mediaSource.endOfStream();
+        });
+    };
+
+    function fetchAB(url, cb) {
+        console.log(url);
+        var xhr = new XMLHttpRequest;
+        xhr.open('get', url);
+        xhr.responseType = 'arraybuffer';
+        xhr.onload = function () {
+            cb(xhr.response);
+        };
+        xhr.send();
+    };*/
+
+    function getMode(withURL) {
+        var urlParam = getUrlParameter('mode');
+        if (urlParam !== undefined && withURL) return urlParam;
+        return $('#modeDropdown').val();
+    }
+
+    var getUrlParameter = function getUrlParameter(sParam) {
+        var sPageURL = decodeURIComponent(window.location.search.substring(1)),
+            sURLVariables = sPageURL.split('&'),
+            sParameterName,
+            i;
+
+        for (i = 0; i < sURLVariables.length; i++) {
+            sParameterName = sURLVariables[i].split('=');
+
+            if (sParameterName[0] === sParam) {
+                return sParameterName[1] === undefined ? true : sParameterName[1];
+            }
+        }
+    };
+</script>
