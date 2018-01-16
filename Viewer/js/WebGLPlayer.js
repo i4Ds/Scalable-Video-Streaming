@@ -1,4 +1,6 @@
-﻿var WebGLPlayer = function (videos, initMode) {
+﻿// https://stackoverflow.com/questions/31006399/webgl-asynchronous-teximage2d
+// https://stackoverflow.com/questions/9863969/updating-a-texture-in-opengl-with-glteximage2d
+var WebGLPlayer = function (videos, initMode) {
     if (!Detector.webgl) Detector.addGetWebGLMessage();
 
     this.stats = new Stats();
@@ -24,7 +26,7 @@
     this.controls.dynamicDampingFactor = 0.3;
 
     this.controls.keys = [65, 83, 68];
-    
+
     this.videos = videos;
 
     //controls.addEventListener('change', render);
@@ -32,12 +34,32 @@
     // world
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xcccccc);
-    //scene.fog = new THREE.FogExp2(0xcccccc, 0.002);
+    window.scene = this.scene;
+    this.scene.background = new THREE.Color(0xcccccc);    
+    var light = new THREE.AmbientLight(0x888888);
+    this.scene.add(light);
+    
+    // renderer
+    this.frameCount = 0;
+    this.frameStart = performance.now();
+    this.renderer = new THREE.WebGLRenderer({ antialias: false }); //, preserveDrawingBuffer: true
+    this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
 
+    this.currentRenderTarget = 0;
+    /*var renderTargetOptions = { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, format: THREE.LuminanceFormat };
+    this.renderBuffers = [
+        new THREE.WebGLRenderTarget(4096, 4096, renderTargetOptions),
+        new THREE.WebGLRenderTarget(4096, 4096, renderTargetOptions)
+    ];*/
+
+    this.container.appendChild(this.renderer.domElement);
+
+    
     this.setMode = function (mode) {
         console.log('Switching to ' + mode);
         // clear stuff
+        if (this.worker !== undefined) this.worker.terminate();
         if (this.__spheres !== undefined) {
             for (var i = 0; i < this.__spheres.length; i++) {
                 this.scene.remove(this.__spheres[i]);
@@ -92,20 +114,36 @@
                 this.__textures.push(texture);
             }
         } else {
-            var canvas = $('<canvas id="videoCanvas" height="4096" width="4096"></canvas>');
+
+            /*var canvas = $('<canvas id="videoCanvas" height="4096" width="4096"></canvas>');
             canvas.css({
                 'position': 'absolute',
-                'left': -1000,
-                'top': -500,
-                'z-index': 5000,
+                'left': -10000,
+                'top': -10000,
+                'z-index': 50000,
                 'display': 'none'
             });
             $(document.body).append(canvas);
             this.videoContext = canvas[0].getContext('2d');
 
+            this.videoTexture = new THREE.Texture(canvas[0]);*/
+
+            this.videoArrayBuffer = [new Uint8Array(4096 * 4096), new Uint8Array(4096 * 4096)];
+            this.videoTexture = [
+                new UpdatableDataTexture(this.videoArrayBuffer[0], 4096, 4096, THREE.LuminanceFormat),
+                new UpdatableDataTexture(this.videoArrayBuffer[1], 4096, 4096, THREE.LuminanceFormat)
+            ];
+            this.videoTexture[0].generateMipmaps = false;
+            this.videoTexture[0].premultiplyAlpha = false;
+            this.videoTexture[0].setRenderer(this.renderer);
+            this.videoTexture[0].setSize(this.videoArrayBuffer[0], 4096, 4096);
+            this.videoTexture[1].generateMipmaps = false;
+            this.videoTexture[1].premultiplyAlpha = false;
+            this.videoTexture[1].setRenderer(this.renderer);
+            this.videoTexture[1].setSize(this.videoArrayBuffer[1], 4096, 4096);
+
             var geometry = new THREE.SphereGeometry(100, 32, 32);
-            this.videoTexture = new THREE.Texture(canvas[0]);
-            var vt = this.videoTexture;
+            var vt = this.videoTexture[0];
             var material = new THREE.MeshPhongMaterial({ color: 0xffffff, map: vt, flatShading: false });
             var mesh = new THREE.Mesh(geometry, material);
             mesh.updateMatrix();
@@ -114,25 +152,25 @@
             this.__sphereMesh = mesh;
             this.__sphereMat = material;
             this.__sphereGeom = geometry;
+
+            if (window.Worker) {
+                var videoWorker = new Worker('js/VideoLoader.js');
+                this.updateBuffer = function (e) {
+                    //this.videoArrayBuffer[1 - this.currentRenderTarget].set(new Uint8Array(e.data.buffer));
+                    //console.log('receiving new');
+                    this.videoTexture[1 - this.currentRenderTarget].update(new Uint8Array(e.data.buffer), e.data.x * 512, e.data.y * 512);
+                    //console.log(e.data.x, e.data.y);
+                }.bind(this);
+                videoWorker.onmessage = this.updateBuffer;
+                this.worker = videoWorker;
+            } else {
+                alert('No worker support :(');
+            }
         }
         this.mode = mode;
     }.bind(this);
 
-
     this.setMode(initMode);
-
-
-    var light = new THREE.AmbientLight(0x888888);
-    this.scene.add(light);
-
-
-    // renderer
-
-    this.renderer = new THREE.WebGLRenderer({ antialias: false });
-    this.renderer.setPixelRatio(window.devicePixelRatio);
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-
-    this.container.appendChild(this.renderer.domElement);
 
     window.addEventListener('resize', this.onWindowResize.bind(this), false);
 };
@@ -153,22 +191,28 @@ WebGLPlayer.prototype.animate = function () {
     requestAnimationFrame(this.animate.bind(this));
     this.controls.update();
 
-    if (this.mode == '1bigTexture') {
-        for (var i = 0; i < 64; i++) {
-            var x = i % 8;
-            var y = (i - x) / 8;
-            this.videoContext.drawImage(this.videos[i], x * 512, y * 512, 512, 512);
-        }
-        this.videoTexture.needsUpdate = true;
-    }
-
     this.render();
 };
 
 WebGLPlayer.prototype.render = function () {
-    this.renderer.render(this.scene, this.camera);
+    this.renderer.render(this.scene, this.camera); //, this.renderBuffers[this.currentRenderTarget], false
     this.stats.update();
-    var renderStats = 'Memory:<br /><ul>';
+
+    for (var y = 0; y < 1; y++) {
+        for (var x = 0; x < 8; x++) {
+            this.worker.postMessage({
+                command: 'giefNewFrame',
+                x: x,
+                y: y
+            });
+        }
+    }
+
+    // make the other texture active
+    this.__sphereMat.map = this.videoTexture[1 - this.currentRenderTarget];
+    //this.currentRenderTarget = 1 - this.currentRenderTarget;
+
+    /*var renderStats = 'Memory:<br /><ul>';
     renderStats += '<li>Geometries: ' + this.renderer.info.memory.geometries + '</li>';
     renderStats += '<li>Textures: ' + this.renderer.info.memory.textures + '</li>';
     renderStats += '</ul>Renderer:<br /><ul>'
@@ -177,4 +221,12 @@ WebGLPlayer.prototype.render = function () {
     renderStats += '<li>Vertices: ' + this.renderer.info.render.vertices + '</li>';
     renderStats += '</ul>';
     $('#renderStats').html(renderStats);
+    
+
+    this.frameCount++;
+    if (performance.now() - this.frameStart >= 1000) {
+        this.frameStart = performance.now();
+        console.log(this.frameCount + " fps.");
+        this.frameCount = 0;
+    }*/
 };

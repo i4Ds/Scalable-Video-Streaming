@@ -8,6 +8,8 @@
     <script src="lib/three.js"></script>
     <script src="lib/three/Detector.js"></script>
     <script src="lib/three/TrackballControls.js"></script>
+    <script src="lib/three/UpdatableTexture.js"></script>
+    <script src="lib/three/UpdatableDataTexture.js"></script>
     <script src="js/WebGLPlayer.js"></script>
     <script src="lib/stats.min.js"></script>
     <style>
@@ -50,8 +52,8 @@
     </div>
     <div id="info">
         <select id="modeDropdown">
-            <option>64spheres</option>
             <option>1bigTexture</option>
+            <option>64spheres</option>
         </select>
         <br />
         <span id="modeInfo64spheres" class="modeInfos">Renders a scene with 64 spheres with one THREE.VideoTexture on each, rendering (and draw calling) 64 video textures each frame. Only one sphere has a medium vertex count, the others low.</span>
@@ -66,18 +68,28 @@
 </html>
 <script type="text/javascript">
 
-    var baseUrl = "/Data/video512/4096/1/";
+    var baseUrl = "videos/4096/1/";
     var player;
 
     document.addEventListener('DOMContentLoaded', function () {
         // create videos
         var videos = [];
+        var videosLoaded = 0;
         for (var i = 0; i < 64; i++) {
             var x = i % 8;
             var y = (i - x) / 8;
             var v = $('<video autoplay loop>\
                 <source src="' + baseUrl + '2017/9/11/0/0/9/SDO_AIA_171/35__'+x+'_'+y+'.mp4" type="video/mp4">\
                 </video >');
+            v[0].addEventListener('loadeddata', function () {
+                // Video is loaded and can be played
+                videosLoaded++;
+                if (videosLoaded == 64) {
+                    var mode = getMode(false);
+                    player = new WebGLPlayer(videos, mode);
+                    player.animate();
+                }
+            }, false);
             $('#videoContainer').append(v);
             videos.push(v[0]);
         }
@@ -95,13 +107,12 @@
         var mode = getMode(true);
         showModeInfo(mode);
 
-        player = new WebGLPlayer(videos, mode);
-        player.animate();
 
         $('#showVideoContainer').change(function () {
             console.log(this.checked);
             $('#videoContainer').css('display', this.checked ? 'block' : 'none');
         });
+
 
         /*var canvas = document.getElementById('c');
         var context = canvas.getContext('2d');
