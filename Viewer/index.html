@@ -25,7 +25,7 @@
             bottom: 0;
             left: 0;
             right: 0;
-            width: 300px;
+            width: 150px;
             background-color: rgba(128, 128, 128, 0.5);
             color: white;
             font-size: 12px;
@@ -37,8 +37,8 @@
 
         #videoContainer {
             position: absolute;
-            top: 0px;
-            left: 0px;
+            top: 0;
+            left: 0;
             z-index: 10;
             width: 4096px;
             height: 4096px;
@@ -51,7 +51,13 @@
 
     </div>
     <div id="info">
-        <select id="modeDropdown">
+        <select id="resolutionDropdown">
+            <option value="8">4096x4096</option>
+            <option value="4">2048x2048</option>
+            <option value="2">1024x1024</option>
+        </select>
+        <br />
+        <select id="modeDropdown" disabled="disabled">
             <option>1bigTexture</option>
             <option>64spheres</option>
         </select>
@@ -62,7 +68,7 @@
         <br />
         <span id="renderStats"></span>
         <br />
-        Show video container: <input id="showVideoContainer" type="checkbox" />
+        Show video container: <input id="showVideoContainer" type="checkbox"/>
     </div>
 </body>
 </html>
@@ -75,24 +81,34 @@
         // create videos
         var videos = [];
         var videosLoaded = 0;
-        for (var i = 0; i < 64; i++) {
-            var x = i % 8;
-            var y = (i - x) / 8;
-            var v = $('<video autoplay loop>\
-                <source src="' + baseUrl + '2017/9/11/0/0/9/SDO_AIA_171/35__'+x+'_'+y+'.mp4" type="video/mp4">\
+        for (var y = 0; y < 8; y++) {
+            for (var x = 0; x < 8; x++) {
+                var v = $('<video muted loop>\
+                <source src="' + baseUrl + '2017/9/11/0/0/9/SDO_AIA_171/35__' + x + '_' + y + '.mp4" type="video/mp4">\
+	            <p>Your browser does not support H.264/MP4.</p>\
                 </video >');
-            v[0].addEventListener('loadeddata', function () {
-                // Video is loaded and can be played
-                videosLoaded++;
-                if (videosLoaded == 64) {
-                    var mode = getMode(false);
-                    player = new WebGLPlayer(videos, mode);
-                    player.animate();
-                }
-            }, false);
-            $('#videoContainer').append(v);
-            videos.push(v[0]);
+                v[0].addEventListener('loadeddata', function () {
+                    // Video is loaded and can be played
+                    videosLoaded++;
+                    if (videosLoaded == 64) {
+                    }
+                }, false);
+                $('#videoContainer').append(v);
+                videos.push(v[0]);
+            }
         }
+        var mode = getMode(false);
+        player = new WebGLPlayer(videos, mode);
+        player.animate();
+
+        // autoplay for Android
+        /*window.addEventListener('touchstart', function videoStart() {
+            for (var v = 0; v < videos.length; v++)
+                videos[v].play();
+            console.log('first touch');
+            // remove from the window and call the function we are removing
+            this.removeEventListener('touchstart', videoStart);
+        });*/
 
         var showModeInfo = function (mode) {
             $('.modeInfos').css('display', 'none');
@@ -109,7 +125,6 @@
 
 
         $('#showVideoContainer').change(function () {
-            console.log(this.checked);
             $('#videoContainer').css('display', this.checked ? 'block' : 'none');
         });
 

@@ -6,7 +6,7 @@ var WebGLPlayer = function (videos, initMode) {
     this.stats = new Stats();
     this.stats.showPanel(1);
     document.body.appendChild(this.stats.dom);
-    $(this.stats.dom).css('left', '300px');
+    $(this.stats.dom).css('left', '150px');
 
     this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 1000);
     this.camera.position.z = 500;
@@ -128,19 +128,19 @@ var WebGLPlayer = function (videos, initMode) {
 
             this.videoTexture = new THREE.Texture(canvas[0]);*/
 
-            this.videoArrayBuffer = [new Uint8Array(4096 * 4096), new Uint8Array(4096 * 4096)];
+            this.videoArrayBuffer = [new Uint8Array(4096 * 4096)]; //, new Uint8Array(4096 * 4096)
             this.videoTexture = [
                 new UpdatableDataTexture(this.videoArrayBuffer[0], 4096, 4096, THREE.LuminanceFormat),
-                new UpdatableDataTexture(this.videoArrayBuffer[1], 4096, 4096, THREE.LuminanceFormat)
+                //new UpdatableDataTexture(this.videoArrayBuffer[1], 4096, 4096, THREE.LuminanceFormat)
             ];
             this.videoTexture[0].generateMipmaps = false;
             this.videoTexture[0].premultiplyAlpha = false;
             this.videoTexture[0].setRenderer(this.renderer);
             this.videoTexture[0].setSize(this.videoArrayBuffer[0], 4096, 4096);
-            this.videoTexture[1].generateMipmaps = false;
+            /*this.videoTexture[1].generateMipmaps = false;
             this.videoTexture[1].premultiplyAlpha = false;
             this.videoTexture[1].setRenderer(this.renderer);
-            this.videoTexture[1].setSize(this.videoArrayBuffer[1], 4096, 4096);
+            this.videoTexture[1].setSize(this.videoArrayBuffer[1], 4096, 4096);*/
 
             var geometry = new THREE.SphereGeometry(100, 32, 32);
             var vt = this.videoTexture[0];
@@ -153,12 +153,14 @@ var WebGLPlayer = function (videos, initMode) {
             this.__sphereMat = material;
             this.__sphereGeom = geometry;
 
+            this.renderBlack = false;
+
             if (window.Worker) {
                 var videoWorker = new Worker('js/VideoLoader.js');
                 this.updateBuffer = function (e) {
                     //this.videoArrayBuffer[1 - this.currentRenderTarget].set(new Uint8Array(e.data.buffer));
-                    //console.log('receiving new');
-                    this.videoTexture[1 - this.currentRenderTarget].update(new Uint8Array(e.data.buffer), e.data.x * 512, e.data.y * 512);
+                    this.videoTexture[this.currentRenderTarget].update(new Uint8Array(e.data.buffer), e.data.x * 512, e.data.y * 512);
+                    this.frameCount++;
                     //console.log(e.data.x, e.data.y);
                 }.bind(this);
                 videoWorker.onmessage = this.updateBuffer;
@@ -198,35 +200,34 @@ WebGLPlayer.prototype.render = function () {
     this.renderer.render(this.scene, this.camera); //, this.renderBuffers[this.currentRenderTarget], false
     this.stats.update();
 
-    for (var y = 0; y < 1; y++) {
-        for (var x = 0; x < 8; x++) {
+    var res = parseInt($('#resolutionDropdown').val());
+    for (var y = 0; y < res; y++) {
+        for (var x = 0; x < res; x++) {
             this.worker.postMessage({
                 command: 'giefNewFrame',
                 x: x,
-                y: y
+                y: y,
+                black: this.renderBlack
             });
         }
     }
 
-    // make the other texture active
-    this.__sphereMat.map = this.videoTexture[1 - this.currentRenderTarget];
-    //this.currentRenderTarget = 1 - this.currentRenderTarget;
+    this.renderBlack = !this.renderBlack;
 
-    /*var renderStats = 'Memory:<br /><ul>';
+    if (performance.now() - this.frameStart >= 1000) {
+        this.frameStart = performance.now();
+        this.patchesPerRender = this.frameCount;
+        this.frameCount = 0;
+    }
+
+    var renderStats = 'Memory:<br /><ul>';
     renderStats += '<li>Geometries: ' + this.renderer.info.memory.geometries + '</li>';
     renderStats += '<li>Textures: ' + this.renderer.info.memory.textures + '</li>';
     renderStats += '</ul>Renderer:<br /><ul>'
     renderStats += '<li>Calls: ' + this.renderer.info.render.calls + '</li>';
     renderStats += '<li>Faces: ' + this.renderer.info.render.faces + '</li>';
     renderStats += '<li>Vertices: ' + this.renderer.info.render.vertices + '</li>';
+    renderStats += '<li>Patches per Render: ' + this.patchesPerRender + '</li>'
     renderStats += '</ul>';
     $('#renderStats').html(renderStats);
-    
-
-    this.frameCount++;
-    if (performance.now() - this.frameStart >= 1000) {
-        this.frameStart = performance.now();
-        console.log(this.frameCount + " fps.");
-        this.frameCount = 0;
-    }*/
 };
