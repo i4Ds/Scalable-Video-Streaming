@@ -14,6 +14,7 @@ var WebGLPlayer = function (videos, initMode) {
     this.container = document.getElementById('container');
 
     this.controls = new THREE.TrackballControls(this.camera, this.container);
+    this.controls.noPan = true;
 
     this.controls.rotateSpeed = 1.0;
     this.controls.zoomSpeed = 1.2;
@@ -156,15 +157,8 @@ var WebGLPlayer = function (videos, initMode) {
             this.renderBlack = false;
 
             if (window.Worker) {
-                var videoWorker = new Worker('js/VideoLoader.js');
-                this.updateBuffer = function (e) {
-                    //this.videoArrayBuffer[1 - this.currentRenderTarget].set(new Uint8Array(e.data.buffer));
-                    this.videoTexture[this.currentRenderTarget].update(new Uint8Array(e.data.buffer), e.data.x * 512, e.data.y * 512);
-                    this.frameCount++;
-                    //console.log(e.data.x, e.data.y);
-                }.bind(this);
-                videoWorker.onmessage = this.updateBuffer;
-                this.worker = videoWorker;
+                this.worker = new Worker('js/VideoLoader.js');
+                this.worker.onmessage = this.frameReceived.bind(this);
             } else {
                 alert('No worker support :(');
             }
@@ -190,10 +184,34 @@ WebGLPlayer.prototype.onWindowResize = function () {
 
 WebGLPlayer.prototype.animate = function () {
 
-    requestAnimationFrame(this.animate.bind(this));
+    //requestAnimationFrame(this.animate.bind(this));
     this.controls.update();
 
     this.render();
+};
+
+WebGLPlayer.prototype.frameReceived = function (e) {
+    // Call texSubImage2D for thsi delivered frame
+    this.videoTexture[this.currentRenderTarget].update(new Uint8Array(e.data.buffer), e.data.x * 512, e.data.y * 512);
+    // Mark the current frame as received and processed
+    this._currentFrameRequest = this._currentFrameRequest.filter(el => !(el[0] == e.data.x && el[1] == e.data.y));
+    this.frameCount++;
+    // If all requested frames are received, display them, then request a new set
+    if (this._currentFrameRequest.length == 0) {
+        requestAnimationFrame(this.animate.bind(this));
+    }
+};
+
+WebGLPlayer.prototype.requestFrames = function (list) {
+    this._currentFrameRequest = list;
+    for (var l = 0; l < list.length; l++) {
+        this.worker.postMessage({
+            command: 'giefNewFrame',
+            x: list[l][0],
+            y: list[l][1],
+            black: this.renderBlack
+        });
+    }
 };
 
 WebGLPlayer.prototype.render = function () {
@@ -201,16 +219,13 @@ WebGLPlayer.prototype.render = function () {
     this.stats.update();
 
     var res = parseInt($('#resolutionDropdown').val());
+    var requestList = [];
     for (var y = 0; y < res; y++) {
         for (var x = 0; x < res; x++) {
-            this.worker.postMessage({
-                command: 'giefNewFrame',
-                x: x,
-                y: y,
-                black: this.renderBlack
-            });
+            requestList.push([x, y]);
         }
     }
+    this.requestFrames(requestList);
 
     this.renderBlack = !this.renderBlack;
 

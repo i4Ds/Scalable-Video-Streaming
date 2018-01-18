@@ -147,6 +147,54 @@
         setTimeout(draw, 20, v, c);
     }*/
 
+    function tryMSE() {
+        var videoUrl = baseUrl + '2017/9/11/0/0/9/SDO_AIA_171/35__' + 0 + '_' + 0 + '.mp4';
+        var mime = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
+        var mediaSource = new MediaSource();
+        var sourceBuffer = mediaSource.addSourceBuffer(mime);
+        fetch(videoUrl)
+            .then(function (response) {
+                return response.arrayBuffer();
+            })
+            .then(function (arrayBuffer) {
+                console.log(arrayBuffer);
+                sourceBuffer.addEventListener('updateend', function (e) {
+                    if (!sourceBuffer.updating && mediaSource.readyState === 'open') {
+                        mediaSource.endOfStream();
+                    }
+                });
+                sourceBuffer.appendBuffer(arrayBuffer);
+            });
+
+        /*if (window.MediaSource) {
+            var mediaSource = new MediaSource();
+            vidSrc = URL.createObjectURL(mediaSource);
+            mediaSource.addEventListener('sourceopen', sourceOpen);
+        } else {
+            console.log("The Media Source Extensions API is not supported.")
+        }*/
+    }
+
+    function sourceOpen(e) {
+        console.log('sourceOpen');
+        URL.revokeObjectURL(vidSrc);
+        var mime = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
+        var mediaSource = e.target;
+        var sourceBuffer = mediaSource.addSourceBuffer(mime);
+        var videoUrl = baseUrl + '2017/9/11/0/0/9/SDO_AIA_171/35__' + 0 + '_' + 0 + '.mp4';
+        fetch(videoUrl)
+            .then(function (response) {
+                return response.arrayBuffer();
+            })
+            .then(function (arrayBuffer) {
+                sourceBuffer.addEventListener('updateend', function (e) {
+                    if (!sourceBuffer.updating && mediaSource.readyState === 'open') {
+                        mediaSource.endOfStream();
+                    }
+                });
+                sourceBuffer.appendBuffer(arrayBuffer);
+            });
+    }
 
     /*var assetURL = '/Data/video512/512/1/2017/9/11/0/0/9/SDO_AIA_171/35__0_0.mp4';
     // Need to be specific for Blink regarding codecs
