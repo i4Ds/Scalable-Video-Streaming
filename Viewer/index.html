@@ -8,8 +8,10 @@
     <script src="lib/three.js"></script>
     <script src="lib/three/Detector.js"></script>
     <script src="lib/three/TrackballControls.js"></script>
+    <script src="js/VideoTile.js"></script>
     <script src="lib/three/UpdatableTexture.js"></script>
     <script src="lib/three/UpdatableDataTexture.js"></script>
+    <script src="lib/three/UpdatableVideoTexture.js"></script>
     <script src="js/WebGLPlayer.js"></script>
     <script src="lib/stats.min.js"></script>
     <style>
@@ -74,6 +76,10 @@
 </html>
 <script type="text/javascript">
 
+    /*window.onerror = function (err) {
+        alert(err);
+    };*/
+
     var baseUrl = "videos/4096/1/";
     var player;
 
@@ -83,23 +89,23 @@
         var videosLoaded = 0;
         for (var y = 0; y < 8; y++) {
             for (var x = 0; x < 8; x++) {
-                var v = $('<video muted loop>\
-                <source src="' + baseUrl + '2017/9/11/0/0/9/SDO_AIA_171/35__' + x + '_' + y + '.mp4" type="video/mp4">\
-	            <p>Your browser does not support H.264/MP4.</p>\
-                </video >');
-                v[0].addEventListener('loadeddata', function () {
+                var v = $('<video></video>');
+                $('#videoContainer').append(v);
+
+                var vt = new VideoTile(v[0]);
+                vt.addEventListener('ready', function () {
                     // Video is loaded and can be played
                     videosLoaded++;
                     if (videosLoaded == 64) {
+                        var mode = getMode(false);
+                        player = new WebGLPlayer(videos, mode);
+                        player.animate();
                     }
-                }, false);
-                $('#videoContainer').append(v);
-                videos.push(v[0]);
+                }, { once: true });
+                vt.fetch(baseUrl + '2017/9/11/0/0/9/SDO_AIA_171/35__' + x + '_' + y + '.mp4');
+                videos.push(vt);
             }
         }
-        var mode = getMode(false);
-        player = new WebGLPlayer(videos, mode);
-        player.animate();
 
         // autoplay for Android
         /*window.addEventListener('touchstart', function videoStart() {

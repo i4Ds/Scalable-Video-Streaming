@@ -37,7 +37,7 @@ var WebGLPlayer = function (videos, initMode) {
     this.scene = new THREE.Scene();
     window.scene = this.scene;
     this.scene.background = new THREE.Color(0xcccccc);    
-    var light = new THREE.AmbientLight(0x888888);
+    var light = new THREE.AmbientLight(0xFFFFFF);
     this.scene.add(light);
     
     // renderer
@@ -116,7 +116,8 @@ var WebGLPlayer = function (videos, initMode) {
             }
         } else {
 
-            /*var canvas = $('<canvas id="videoCanvas" height="4096" width="4096"></canvas>');
+            // INFO: Currently OffscreenCanvas has practically no support in browsers.
+            /*var canvas = $('<canvas id="videoCanvas" height="512" width="512"></canvas>');
             canvas.css({
                 'position': 'absolute',
                 'left': -10000,
@@ -125,26 +126,13 @@ var WebGLPlayer = function (videos, initMode) {
                 'display': 'none'
             });
             $(document.body).append(canvas);
-            this.videoContext = canvas[0].getContext('2d');
-
-            this.videoTexture = new THREE.Texture(canvas[0]);*/
-
-            this.videoArrayBuffer = [new Uint8Array(4096 * 4096)]; //, new Uint8Array(4096 * 4096)
-            this.videoTexture = [
-                new UpdatableDataTexture(this.videoArrayBuffer[0], 4096, 4096, THREE.LuminanceFormat),
-                //new UpdatableDataTexture(this.videoArrayBuffer[1], 4096, 4096, THREE.LuminanceFormat)
-            ];
-            this.videoTexture[0].generateMipmaps = false;
-            this.videoTexture[0].premultiplyAlpha = false;
-            this.videoTexture[0].setRenderer(this.renderer);
-            this.videoTexture[0].setSize(this.videoArrayBuffer[0], 4096, 4096);
-            /*this.videoTexture[1].generateMipmaps = false;
-            this.videoTexture[1].premultiplyAlpha = false;
-            this.videoTexture[1].setRenderer(this.renderer);
-            this.videoTexture[1].setSize(this.videoArrayBuffer[1], 4096, 4096);*/
+            this.videoDrawContext = canvas[0].getContext('2d');*/
+            
+            this.videoTexture = new UpdatableVideoTexture(THREE.LuminanceFormat);
+            this.videoTexture.setRenderer(this.renderer);
 
             var geometry = new THREE.SphereGeometry(100, 32, 32);
-            var vt = this.videoTexture[0];
+            var vt = this.videoTexture;
             var material = new THREE.MeshPhongMaterial({ color: 0xffffff, map: vt, flatShading: false });
             var mesh = new THREE.Mesh(geometry, material);
             mesh.updateMatrix();
@@ -156,12 +144,15 @@ var WebGLPlayer = function (videos, initMode) {
 
             this.renderBlack = false;
 
-            if (window.Worker) {
+            this.renderer.render(this.scene, this.camera);
+            this.videoTexture.initRender(this.videos[0].element, 512, 512);
+
+            /*if (window.Worker) {
                 this.worker = new Worker('js/VideoLoader.js');
                 this.worker.onmessage = this.frameReceived.bind(this);
             } else {
                 alert('No worker support :(');
-            }
+            }*/
         }
         this.mode = mode;
     }.bind(this);
@@ -184,17 +175,17 @@ WebGLPlayer.prototype.onWindowResize = function () {
 
 WebGLPlayer.prototype.animate = function () {
 
-    //requestAnimationFrame(this.animate.bind(this));
+    requestAnimationFrame(this.animate.bind(this));
     this.controls.update();
 
     this.render();
 };
 
-WebGLPlayer.prototype.frameReceived = function (e) {
+/*WebGLPlayer.prototype.frameReceived = function (e) {
     // Call texSubImage2D for thsi delivered frame
     this.videoTexture[this.currentRenderTarget].update(new Uint8Array(e.data.buffer), e.data.x * 512, e.data.y * 512);
     // Mark the current frame as received and processed
-    this._currentFrameRequest = this._currentFrameRequest.filter(el => !(el[0] == e.data.x && el[1] == e.data.y));
+    this._currentFrameRequest = this._currentFrameRequest.filter(function (fel) { return !(fel[0] == e.data.x && fel[1] == e.data.y); });
     this.frameCount++;
     // If all requested frames are received, display them, then request a new set
     if (this._currentFrameRequest.length == 0) {
@@ -212,22 +203,40 @@ WebGLPlayer.prototype.requestFrames = function (list) {
             black: this.renderBlack
         });
     }
-};
+};*/
 
 WebGLPlayer.prototype.render = function () {
+    var res = parseInt($('#resolutionDropdown').val());
+
+    /*if (!this._textureInitialized) {
+        this.videoTexture.initRender(this.videos[0].element, 512, 512);
+        this._textureInitialized = true;
+    }*/
+
+    // update video frames
+    /*for (var y = 0; y < res; y++) {
+        for (var x = 0; x < res; x++) {
+            //var frame = this.__getCurrentVideoFrame(this.videos[y * 8 + x]);
+            var v = this.videos[y * 8 + x];
+            if (v.ready) this.videoTexture.update(v.element, x * 512, y * 512);
+        }
+    }*/
+
+    var v = this.videos[4 * 8 + 4];
+        if (v.ready) this.videoTexture.update(v.element, 0, 0);
+
     this.renderer.render(this.scene, this.camera); //, this.renderBuffers[this.currentRenderTarget], false
     this.stats.update();
 
-    var res = parseInt($('#resolutionDropdown').val());
-    var requestList = [];
+    /*var requestList = [];
     for (var y = 0; y < res; y++) {
         for (var x = 0; x < res; x++) {
             requestList.push([x, y]);
         }
     }
-    this.requestFrames(requestList);
+    this.requestFrames(requestList);*/
 
-    this.renderBlack = !this.renderBlack;
+    //this.renderBlack = !this.renderBlack;
 
     if (performance.now() - this.frameStart >= 1000) {
         this.frameStart = performance.now();
@@ -245,4 +254,17 @@ WebGLPlayer.prototype.render = function () {
     renderStats += '<li>Patches per Render: ' + this.patchesPerRender + '</li>'
     renderStats += '</ul>';
     $('#renderStats').html(renderStats);
+};
+
+WebGLPlayer.prototype.__getCurrentVideoFrame = function (video) {
+    // https://stackoverflow.com/questions/28420724/how-to-determine-the-intended-frame-rate-on-an-html-video-element/28455790#28455790
+    // The following is very inefficient, stupid, and has many artifacts...
+    this.videoDrawContext.drawImage(video, 0, 0);
+    var rgba = this.videoDrawContext.getImageData(0, 0, 512, 512).data;
+    var l = rgba.length / 4;
+    var grayscale = new Uint8Array(l);
+    for (var i = 0; i < l; i++) {
+        grayscale[i] = rgba[i * 4];
+    }
+    return grayscale;
 };

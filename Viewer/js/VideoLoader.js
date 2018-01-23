@@ -29,3 +29,4 @@ updateBuffer = function (y, x, renderBlack) {
         buffer: buffer.buffer
     }, [buffer.buffer]);
 };
+
