@@ -32,7 +32,7 @@ UpdatableVideoTexture.prototype.setRenderer = function( renderer ) {
     this.utils = THREE.WebGLUtils(this.gl, this.renderer.extensions);
 }
 
-UpdatableVideoTexture.prototype.initRender = function (video, width, height) {
+UpdatableVideoTexture.prototype.initRender = function (width, height) {
 
     console.log(this.width, this.height);
 
@@ -48,26 +48,26 @@ UpdatableVideoTexture.prototype.initRender = function (video, width, height) {
 	this.gl.bindTexture( this.gl.TEXTURE_2D, textureProperties.__webglTexture );
     if (!textureProperties.__webglTexture) this.width = null;
 
-	/*this.gl.texImage2D(
-		this.gl.TEXTURE_2D,
-		0,
-		this.utils.convert( this.format ),
-		this.width,
-		this.height,
-		0,
-		this.utils.convert( this.format ),
-		this.utils.convert( this.type ),
-        new Uint8Array(width * height)
-	);*/
-
     this.gl.texImage2D(
+        this.gl.TEXTURE_2D,
+        0,
+        this.utils.convert(this.format),
+        this.width,
+        this.height,
+        0,
+        this.utils.convert(this.format),
+        this.utils.convert(this.type),
+        new Uint8Array(width * height * (this.utils.convert(this.format) == this.gl.LUMINANCE ? 1 : 4))
+	);
+
+    /*this.gl.texImage2D(
         this.gl.TEXTURE_2D,
         0,
         this.utils.convert(this.format),
         this.utils.convert(this.format),
         this.utils.convert(this.type),
         video
-    );
+    );*/
     console.log('texImage2D');
 
 	this.gl.bindTexture( this.gl.TEXTURE_2D, activeTexture );
@@ -95,32 +95,17 @@ UpdatableVideoTexture.prototype.update = function( video, x, y ) {
     this.gl.bindTexture(this.gl.TEXTURE_2D, textureProperties.__webglTexture);
     
     var len = 512; //Math.round(Math.sqrt(src.length));
-	/*this.gl.texSubImage2D(
+	this.gl.texSubImage2D(
 		this.gl.TEXTURE_2D,
 		0,
 		x,
-        this.height - y - len,
+        y,
         this.utils.convert( this.format ),
 		this.utils.convert( this.type ),
         video
-	);
-    this.gl.texImage2D(
-        this.gl.TEXTURE_2D,
-        0,
-        this.utils.convert(this.format),
-        this.utils.convert(this.format),
-        this.utils.convert(this.type),
-        video
-    );*/
-    this.gl.texSubImage2D(
-        this.gl.TEXTURE_2D,
-        0,
-        0,
-        0,
-        this.utils.convert(this.format),
-        this.utils.convert(this.type),
-        video
     );
+    console.log('texSubImage2D');
+
 	//this.gl.generateMipmap( this.gl.TEXTURE_2D );
 	this.gl.bindTexture( this.gl.TEXTURE_2D, activeTexture );
 

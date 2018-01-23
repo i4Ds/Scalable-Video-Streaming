@@ -142,10 +142,8 @@ var WebGLPlayer = function (videos, initMode) {
             this.__sphereMat = material;
             this.__sphereGeom = geometry;
 
-            this.renderBlack = false;
-
             this.renderer.render(this.scene, this.camera);
-            this.videoTexture.initRender(this.videos[0].element, 512, 512);
+            this.videoTexture.initRender(4096, 4096);
 
             /*if (window.Worker) {
                 this.worker = new Worker('js/VideoLoader.js');
@@ -214,17 +212,15 @@ WebGLPlayer.prototype.render = function () {
     }*/
 
     // update video frames
-    /*for (var y = 0; y < res; y++) {
+    for (var y = 0; y < res; y++) {
         for (var x = 0; x < res; x++) {
             //var frame = this.__getCurrentVideoFrame(this.videos[y * 8 + x]);
             var v = this.videos[y * 8 + x];
             if (v.ready) this.videoTexture.update(v.element, x * 512, y * 512);
         }
-    }*/
+    }
 
-    var v = this.videos[4 * 8 + 4];
-        if (v.ready) this.videoTexture.update(v.element, 0, 0);
-
+    console.log('render');
     this.renderer.render(this.scene, this.camera); //, this.renderBuffers[this.currentRenderTarget], false
     this.stats.update();
 
