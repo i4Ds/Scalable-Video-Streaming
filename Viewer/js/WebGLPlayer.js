@@ -4,7 +4,8 @@ var WebGLPlayer = function (videos, initMode) {
     if (!Detector.webgl) Detector.addGetWebGLMessage();
 
     this.stats = new Stats();
-    this.stats.showPanel(1);
+    this._syncsPanel = this.stats.addPanel(new Stats.Panel('syncs', '#ff8', '#221'));
+    this.stats.showPanel(0);
     document.body.appendChild(this.stats.dom);
     $(this.stats.dom).css('left', '150px');
 
@@ -21,9 +22,9 @@ var WebGLPlayer = function (videos, initMode) {
     this.controls.panSpeed = 0.8;
 
     this.controls.noZoom = false;
-    this.controls.noPan = false;
+    this.controls.noPan = true;
 
-    this.controls.staticMoving = true;
+    //this.controls.staticMoving = true;
     this.controls.dynamicDampingFactor = 0.3;
 
     this.controls.keys = [65, 83, 68];
@@ -46,8 +47,7 @@ var WebGLPlayer = function (videos, initMode) {
     this.renderer = new THREE.WebGLRenderer({ antialias: false }); //, preserveDrawingBuffer: true
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-
-    this.currentRenderTarget = 0;
+    
     /*var renderTargetOptions = { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, format: THREE.LuminanceFormat };
     this.renderBuffers = [
         new THREE.WebGLRenderTarget(4096, 4096, renderTargetOptions),
@@ -143,7 +143,7 @@ var WebGLPlayer = function (videos, initMode) {
             this.__sphereGeom = geometry;
 
             this.renderer.render(this.scene, this.camera);
-            this.videoTexture.initRender(4096, 4096);
+            this.videoTexture.initRender();
 
             /*if (window.Worker) {
                 this.worker = new Worker('js/VideoLoader.js');
@@ -173,10 +173,10 @@ WebGLPlayer.prototype.onWindowResize = function () {
 
 WebGLPlayer.prototype.animate = function () {
 
-    requestAnimationFrame(this.animate.bind(this));
     this.controls.update();
 
     this.render();
+    requestAnimationFrame(this.animate.bind(this));
 };
 
 /*WebGLPlayer.prototype.frameReceived = function (e) {
@@ -210,17 +210,40 @@ WebGLPlayer.prototype.render = function () {
         this.videoTexture.initRender(this.videos[0].element, 512, 512);
         this._textureInitialized = true;
     }*/
+    //console.log(syncTime);
 
+    var totalSyncs = 0;
+
+    //var test1 = performance.now();
     // update video frames
-    for (var y = 0; y < res; y++) {
-        for (var x = 0; x < res; x++) {
+    var lb = parseInt((8 - res) / 2);
+    var ub = parseInt(res + (8 - res) / 2);
+    var syncTime = this.videos[lb * 8 + lb].element.currentTime;
+    var syncVideos = document.getElementById('syncVideos').checked;
+    for (var y = lb; y < ub; y++) {
+        for (var x = lb; x < ub; x++) {
             //var frame = this.__getCurrentVideoFrame(this.videos[y * 8 + x]);
             var v = this.videos[y * 8 + x];
-            if (v.ready) this.videoTexture.update(v.element, x * 512, y * 512);
+            if (v.ready) {
+                var ct = v.element.currentTime;
+                var td = Math.abs(ct - syncTime);
+                var diff = Math.min(td, 2.5 - td);
+                if (syncVideos && diff >= 0.05) { // seconds threshold
+                    var dtest = ct - syncTime;
+                    if (dtest < -1.5) dtest = (ct + 2.5) - syncTime;
+                    if (dtest > 1.5) dtest = ct - (syncTime + 2.5);
+                    console.log(Math.round(dtest * 1000), Math.round(diff * 1000));
+                    //console.log(dtest > 0 ? 'move back' : 'move front');
+                    v.element.currentTime = syncTime;
+                    totalSyncs++;
+                }
+                this.videoTexture.update(v.element, x * 512, y * 512);
+            }
         }
     }
+    //console.log('texSubImage2D', Math.round(performance.now() - test1));
 
-    console.log('render');
+    //console.log('render');
     this.renderer.render(this.scene, this.camera); //, this.renderBuffers[this.currentRenderTarget], false
     this.stats.update();
 
@@ -234,11 +257,14 @@ WebGLPlayer.prototype.render = function () {
 
     //this.renderBlack = !this.renderBlack;
 
-    if (performance.now() - this.frameStart >= 1000) {
+    /*if (performance.now() - this.frameStart >= 1000) {
         this.frameStart = performance.now();
-        this.patchesPerRender = this.frameCount;
+        //this.patchesPerRender = this.frameCount;
+        //console.log(this.patchesPerRender);
         this.frameCount = 0;
-    }
+    }*/
+
+    this._syncsPanel.update(totalSyncs, res);
 
     var renderStats = 'Memory:<br /><ul>';
     renderStats += '<li>Geometries: ' + this.renderer.info.memory.geometries + '</li>';
@@ -247,7 +273,7 @@ WebGLPlayer.prototype.render = function () {
     renderStats += '<li>Calls: ' + this.renderer.info.render.calls + '</li>';
     renderStats += '<li>Faces: ' + this.renderer.info.render.faces + '</li>';
     renderStats += '<li>Vertices: ' + this.renderer.info.render.vertices + '</li>';
-    renderStats += '<li>Patches per Render: ' + this.patchesPerRender + '</li>'
+    //renderStats += '<li>Patches per Render: ' + this.patchesPerRender + '</li>'
     renderStats += '</ul>';
     $('#renderStats').html(renderStats);
 };

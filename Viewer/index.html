@@ -56,7 +56,7 @@
         <select id="resolutionDropdown">
             <option value="8">4096x4096</option>
             <option value="4">2048x2048</option>
-            <option value="2">1024x1024</option>
+            <option value="2" selected>1024x1024</option>
             <option value="1">512x512</option>
         </select>
         <br />
@@ -71,7 +71,9 @@
         <br />
         <span id="renderStats"></span>
         <br />
-        Show video container: <input id="showVideoContainer" type="checkbox"/>
+        Sync videos: <input id="syncVideos" type="checkbox" checked="checked"/><br />        
+        Playback rate: <input id="playbackRate" type="number" value="1.0" style="width: 40px;" width="40"/><br />
+        Load videos into container: <input id="showVideoContainer" type="checkbox" />
     </div>
 </body>
 </html>
@@ -90,14 +92,18 @@
         var videosLoaded = 0;
         for (var y = 0; y < 8; y++) {
             for (var x = 0; x < 8; x++) {
-                var v = $('<video></video>');
-                $('#videoContainer').append(v);
+                /*var v = $('<video></video>');
+                $('#videoContainer').append(v);*/
 
-                var vt = new VideoTile(v[0]);
+                var vt = new VideoTile();
                 vt.addEventListener('ready', function () {
                     // Video is loaded and can be played
                     videosLoaded++;
                     if (videosLoaded == 64) {
+                        // play all
+                        videos.forEach(function (vid) {
+                            vid.element.play();
+                        });
                         var mode = getMode(false);
                         player = new WebGLPlayer(videos, mode);
                         player.animate();
@@ -132,7 +138,26 @@
 
 
         $('#showVideoContainer').change(function () {
-            $('#videoContainer').css('display', this.checked ? 'block' : 'none');
+            var vc = $('#videoContainer');
+            videos.forEach(function (v) {
+                vc.append(v.element);
+            });
+            vc.css('display', this.checked ? 'block' : 'none');
+        });
+
+        $('#playbackRate').change(function () {
+            var val = parseFloat($(this).val())
+            player.videoTexture.initRender();
+            videos.forEach(function (v) {
+                v.element.pause();
+                v.element.playbackRate = val;
+                v.element.play();
+            });
+        });
+
+        $('#resolutionDropdown').change(function () {
+            var res = parseInt($('#resolutionDropdown').val());
+            player.videoTexture.initRender();
         });
 
 

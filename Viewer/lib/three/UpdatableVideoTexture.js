@@ -1,18 +1,23 @@
 // first we initialize the texture with some empty data
 function UpdatableVideoTexture(format, type, mapping, wrapS, wrapT, magFilter, minFilter, anisotropy) { //, encoding
 
+    //THREE.Texture.call(this, new Uint8Array(4), 2, 2, format, type);
     THREE.Texture.call(this, null, mapping, wrapS, wrapT, magFilter, minFilter, format, type, anisotropy); //, encoding
+    //this.format = format;
+    //this.type = type;
 
     var canvas = document.createElement('canvas');
     canvas.width = 1;
     canvas.height = 1;
     var ctx = canvas.getContext('2d');
     var imageData = ctx.createImageData(1, 1);
-
     this.image = imageData;
 
-    this.magFilter = magFilter !== undefined ? magFilter : THREE.NearestFilter;
-    this.minFilter = minFilter !== undefined ? minFilter : THREE.NearestFilter;
+    //this.image = { data: new Uint8Array(4), width: 2, height: 2};
+
+
+    this.magFilter = magFilter !== undefined ? magFilter : THREE.LinearFilter;
+    this.minFilter = minFilter !== undefined ? minFilter : THREE.LinearFilter;
 
     this.generateMipmaps = false;
     this.flipY = false;
@@ -21,7 +26,7 @@ function UpdatableVideoTexture(format, type, mapping, wrapS, wrapT, magFilter, m
     this.premultiplyAlpha = false;
 }
 
-UpdatableVideoTexture.prototype = Object.create( THREE.Texture.prototype );
+UpdatableVideoTexture.prototype = Object.create(THREE.Texture.prototype );
 UpdatableVideoTexture.prototype.constructor = UpdatableVideoTexture;
 
 UpdatableVideoTexture.prototype.isUpdatableTexture = true;
@@ -32,11 +37,11 @@ UpdatableVideoTexture.prototype.setRenderer = function( renderer ) {
     this.utils = THREE.WebGLUtils(this.gl, this.renderer.extensions);
 }
 
-UpdatableVideoTexture.prototype.initRender = function (width, height) {
+UpdatableVideoTexture.prototype.initRender = function () {
+    var width = 4096;
+    var height = 4096;
 
-    console.log(this.width, this.height);
-
-    if (width === this.width && height === this.height) return;
+    //if (width === this.width && height === this.height) return;
 
 	var textureProperties = this.renderer.properties.get( this );
     if (!textureProperties.__webglTexture) return;
@@ -48,12 +53,16 @@ UpdatableVideoTexture.prototype.initRender = function (width, height) {
 	this.gl.bindTexture( this.gl.TEXTURE_2D, textureProperties.__webglTexture );
     if (!textureProperties.__webglTexture) this.width = null;
 
+    this.gl.pixelStorei(this.gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    this.gl.pixelStorei(this.gl.UNPACK_ALIGNMENT, 1);
+    this.gl.pixelStorei(this.gl.UNPACK_FLIP_Y_WEBGL, false);
+
     this.gl.texImage2D(
         this.gl.TEXTURE_2D,
         0,
         this.utils.convert(this.format),
-        this.width,
-        this.height,
+        width,
+        height,
         0,
         this.utils.convert(this.format),
         this.utils.convert(this.type),
@@ -75,24 +84,19 @@ UpdatableVideoTexture.prototype.initRender = function (width, height) {
 }
 
 // https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Animating_textures_in_WebGL
-UpdatableVideoTexture.prototype.update = function( video, x, y ) {
+UpdatableVideoTexture.prototype.update = function (video, x, y) {
 
     //this.isDataTexture = false;
     //this.isVideoTexture = true;
 
-    // maybe necessary for video type:
-    /*const internalFormat = gl.RGBA;
-    const srcFormat = gl.RGBA;
-    const srcType = gl.UNSIGNED_BYTE;*/
-
-	var textureProperties = this.renderer.properties.get( this );
+    var textureProperties = this.renderer.properties.get(this);
+    //console.log(textureProperties.__webglTexture);
 	if( !textureProperties.__webglTexture ) return;
 
     var activeTexture = this.gl.getParameter(this.gl.TEXTURE_BINDING_2D);
-    /*this.gl.pixelStorei(this.gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
-    this.gl.pixelStorei(this.gl.UNPACK_ALIGNMENT, 1);
-    this.gl.pixelStorei(this.gl.UNPACK_FLIP_Y_WEBGL, false);*/
     this.gl.bindTexture(this.gl.TEXTURE_2D, textureProperties.__webglTexture);
+
+    if (video == undefined || video == null) console.log('NULL');
     
     var len = 512; //Math.round(Math.sqrt(src.length));
 	this.gl.texSubImage2D(
@@ -104,7 +108,7 @@ UpdatableVideoTexture.prototype.update = function( video, x, y ) {
 		this.utils.convert( this.type ),
         video
     );
-    console.log('texSubImage2D');
+    //console.log('texSubImage2D');
 
 	//this.gl.generateMipmap( this.gl.TEXTURE_2D );
 	this.gl.bindTexture( this.gl.TEXTURE_2D, activeTexture );

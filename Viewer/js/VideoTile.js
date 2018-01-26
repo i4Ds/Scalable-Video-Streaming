@@ -1,6 +1,8 @@
-﻿var VideoTile = function (videoElement) {
+﻿var VideoTile = function () {
+    // FF performance: https://rejzor.wordpress.com/2015/06/14/improve-firefox-html5-video-playback-performance/
+    const videoElement = document.createElement('video');
 
-    videoElement.autoplay = true;
+    videoElement.autoplay = false;
     videoElement.muted = true;
     videoElement.loop = true;
     videoElement.type = "video/mp4";
@@ -22,7 +24,7 @@ VideoTile.prototype.fetch = function (url) {
     // Waiting for these 2 events ensures
     // there is data in the video
 
-    this.element.addEventListener('playing', function () {
+    /*this.element.addEventListener('playing', function () {
         playing = true;
         checkReady();
     }, { once: true });
@@ -30,10 +32,15 @@ VideoTile.prototype.fetch = function (url) {
     this.element.addEventListener('timeupdate', function () {
         timeupdate = true;
         checkReady();
-    }, { once: true });
+    }, { once: true });*/
+
+    this.element.addEventListener('canplay', function () {
+        this.ready = true;
+        this.dispatchEvent('ready');
+    }.bind(this), { once: true });
 
     this.element.src = url;
-    this.element.play();
+    //this.element.play();
 
     var checkReady = function () {
         if (playing && timeupdate) {
