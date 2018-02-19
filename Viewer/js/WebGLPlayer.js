@@ -232,7 +232,7 @@ WebGLPlayer.prototype.render = function () {
                     var dtest = ct - syncTime;
                     if (dtest < -1.5) dtest = (ct + 2.5) - syncTime;
                     if (dtest > 1.5) dtest = ct - (syncTime + 2.5);
-                    console.log(Math.round(dtest * 1000), Math.round(diff * 1000));
+                    //console.log(Math.round(dtest * 1000), Math.round(diff * 1000));
                     //console.log(dtest > 0 ? 'move back' : 'move front');
                     v.element.currentTime = syncTime;
                     totalSyncs++;
@@ -245,7 +245,7 @@ WebGLPlayer.prototype.render = function () {
 
     //console.log('render');
     this.renderer.render(this.scene, this.camera); //, this.renderBuffers[this.currentRenderTarget], false
-    this.stats.update();
+    
 
     /*var requestList = [];
     for (var y = 0; y < res; y++) {
@@ -257,25 +257,29 @@ WebGLPlayer.prototype.render = function () {
 
     //this.renderBlack = !this.renderBlack;
 
-    /*if (performance.now() - this.frameStart >= 1000) {
-        this.frameStart = performance.now();
-        //this.patchesPerRender = this.frameCount;
-        //console.log(this.patchesPerRender);
-        this.frameCount = 0;
-    }*/
-
-    this._syncsPanel.update(totalSyncs, res);
-
-    var renderStats = 'Memory:<br /><ul>';
-    renderStats += '<li>Geometries: ' + this.renderer.info.memory.geometries + '</li>';
-    renderStats += '<li>Textures: ' + this.renderer.info.memory.textures + '</li>';
-    renderStats += '</ul>Renderer:<br /><ul>'
-    renderStats += '<li>Calls: ' + this.renderer.info.render.calls + '</li>';
-    renderStats += '<li>Faces: ' + this.renderer.info.render.faces + '</li>';
-    renderStats += '<li>Vertices: ' + this.renderer.info.render.vertices + '</li>';
-    //renderStats += '<li>Patches per Render: ' + this.patchesPerRender + '</li>'
-    renderStats += '</ul>';
-    $('#renderStats').html(renderStats);
+    if ($('#noDom').is(':checked')) {
+        this.frameCount++;
+        if (performance.now() - this.frameStart >= 1000) {
+            this.frameStart = performance.now();
+            //this.patchesPerRender = this.frameCount;
+            console.log(this.frameCount);
+            this.frameCount = 0;
+        }
+    } else {
+        this.stats.update();
+        this._syncsPanel.update(totalSyncs, res);
+    
+        var renderStats = 'Memory:<br /><ul>';
+        renderStats += '<li>Geometries: ' + this.renderer.info.memory.geometries + '</li>';
+        renderStats += '<li>Textures: ' + this.renderer.info.memory.textures + '</li>';
+        renderStats += '</ul>Renderer:<br /><ul>'
+        renderStats += '<li>Calls: ' + this.renderer.info.render.calls + '</li>';
+        renderStats += '<li>Faces: ' + this.renderer.info.render.faces + '</li>';
+        renderStats += '<li>Vertices: ' + this.renderer.info.render.vertices + '</li>';
+        //renderStats += '<li>Patches per Render: ' + this.patchesPerRender + '</li>'
+        renderStats += '</ul>';
+        $('#renderStats').html(renderStats);
+    }
 };
 
 WebGLPlayer.prototype.__getCurrentVideoFrame = function (video) {

@@ -1,6 +1,8 @@
 // first we initialize the texture with some empty data
 function UpdatableVideoTexture(format, type, mapping, wrapS, wrapT, magFilter, minFilter, anisotropy) { //, encoding
 
+    // TODO: GL_RED? Video transformation? No gl_get rebinding?
+
     //THREE.Texture.call(this, new Uint8Array(4), 2, 2, format, type);
     THREE.Texture.call(this, null, mapping, wrapS, wrapT, magFilter, minFilter, format, type, anisotropy); //, encoding
     //this.format = format;
@@ -14,7 +16,6 @@ function UpdatableVideoTexture(format, type, mapping, wrapS, wrapT, magFilter, m
     this.image = imageData;
 
     //this.image = { data: new Uint8Array(4), width: 2, height: 2};
-
 
     this.magFilter = magFilter !== undefined ? magFilter : THREE.LinearFilter;
     this.minFilter = minFilter !== undefined ? minFilter : THREE.LinearFilter;
@@ -57,26 +58,20 @@ UpdatableVideoTexture.prototype.initRender = function () {
     this.gl.pixelStorei(this.gl.UNPACK_ALIGNMENT, 1);
     this.gl.pixelStorei(this.gl.UNPACK_FLIP_Y_WEBGL, false);
 
+    this._webglformat = this.utils.convert(this.format)
+
     this.gl.texImage2D(
         this.gl.TEXTURE_2D,
         0,
-        this.utils.convert(this.format),
+        this._webglformat,
         width,
         height,
         0,
-        this.utils.convert(this.format),
+        this._webglformat,
         this.utils.convert(this.type),
-        new Uint8Array(width * height * (this.utils.convert(this.format) == this.gl.LUMINANCE ? 1 : 4))
-	);
+        new Uint8Array(width * height)
+    );
 
-    /*this.gl.texImage2D(
-        this.gl.TEXTURE_2D,
-        0,
-        this.utils.convert(this.format),
-        this.utils.convert(this.format),
-        this.utils.convert(this.type),
-        video
-    );*/
     console.log('texImage2D');
 
 	this.gl.bindTexture( this.gl.TEXTURE_2D, activeTexture );
@@ -104,7 +99,7 @@ UpdatableVideoTexture.prototype.update = function (video, x, y) {
 		0,
 		x,
         y,
-        this.utils.convert( this.format ),
+        this._webglformat,
 		this.utils.convert( this.type ),
         video
     );
