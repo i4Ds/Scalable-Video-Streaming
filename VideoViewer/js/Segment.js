@@ -1,20 +1,21 @@
 ﻿//"use strict";
 
 class Segment {
-    constructor(video, resolution, x, y) {
+    constructor(video, vidRes, canvRes, x, y) {
         this.videoUrl = video;
         this.counter = 0;
         this.frames = {};
 
-        this.resolution = resolution;
+		this.vidRes = vidRes;
+        this.canvRes = canvRes;
         this.x = x;
         this.y = y;
 
-        var test = resolution / 128;
+        var test = canvRes / vidRes;
         var scale = 1 / test;
 
-        var offX = scale * (2*x - test);
-        var offY = scale * (2*y - test);
+        var offX = scale * (2*x - test + 1);
+        var offY = scale * (2*y - test + 1);
 
         var Mscale = twgl.m4.scaling([scale, scale, scale]);
         var Mtrans = twgl.m4.translation([offX, -offY, 0]);
@@ -30,23 +31,21 @@ class Segment {
     render(gl, frameIndex, programInfo, lutTex) {
         if (this.counter > frameIndex) {
 
+			gl.activeTexture(gl.TEXTURE1);
             var tex = twgl.createTexture(gl, {
-                width: 128,
-                height: 128,
+                width: this.vidRes,
+                height: this.vidRes,
                 // gl.R8 only works in webgl 2.0
                 //internalFormat: gl.R8,
-                internalFormat: gl.LUMINANCE,
+                internalFormat: gl.LUMINANCE,  // uses only 1 channel
                 target: gl.TEXTURE_2D,
                 src: this.frames[frameIndex],
             });
-
-            var uniforms = {
-                segmentTexture: tex,
-                modelView: this.posMat
-            };
+			gl.uniform1i(gl.getUniformLocation(programInfo.program, "segmentTexture"), 1);
+			
+			twgl.setUniforms(programInfo, { modelView: this.posMat });
 
             var bufferInfo = twgl.createBufferInfoFromArrays(gl, this.arrays);
-            twgl.setUniforms(programInfo, uniforms);
             twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo);
             twgl.drawBufferInfo(gl, bufferInfo);
         }
@@ -56,16 +55,16 @@ class Segment {
         var self = this;
         this.avc = new Decoder();
         this.avc.onPictureDecoded = function (buffer, width, height, infos) {
-            var data = new Uint8Array(buffer, 0, 128 * 128);
+            var data = new Uint8Array(buffer, 0, this.vidRes * this.vidRes);
             //var index = 0;
-            //for (var i = 0; i < 128 * 128; i++) {
+            //for (var i = 0; i < this.vidRes * this.vidRes; i++) {
             //    data[index++] = buffer[i];
             //}
 
             self.frames[self.counter] = data;
             self.counter++;
             
-            if (self.counter >= 64) {
+            if (self.counter >= this.vidRes / 2) {
                 delete self.reader;
                 delete self.avc;
             }
