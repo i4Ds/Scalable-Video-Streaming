@@ -4,16 +4,7 @@
     <meta charset="utf-8" />
     <title></title>
 	<style>body { margin:0; }</style>
-</head>
-<body onload='renderer([
-	new Segment("35__0_4.mp4", 128, 1024, 0, 4), 
-	new Segment("35__0_5.mp4", 128, 1024, 0, 5), 
-	new Segment("35__1_4.mp4", 128, 1024, 1, 4), 
-	new Segment("35__1_5.mp4", 128, 1024, 1, 5), 
-	new Segment("35__2_4.mp4", 128, 1024, 2, 4), 
-	new Segment("35__2_5.mp4", 128, 1024, 2, 5)])'>
-	
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
     <script src="https://code.createjs.com/preloadjs-0.6.2.min.js"></script>
     <script src="lib/twgl-full.js"></script>
 
@@ -25,7 +16,8 @@
     <script src="js/Segment.js"></script>
 	
 	<script src="./LUT.js"></script>
-
+</head>
+<body>
     <script id="vs" type="x-shader/x-vertex">
         uniform mat4 modelView;
 
@@ -36,21 +28,35 @@
 
         void main(void)
         {
-        gl_Position = modelView * vPosition;
-        texCoord = vTexCoord;
+			gl_Position = modelView * vPosition;
+			texCoord = vTexCoord;
         }
     </script>
     <script id="fs" type="x-shader/x-fragment">
         precision mediump float;
         varying vec2 texCoord;
-        uniform sampler2D segmentTexture;
+        uniform sampler2D colorTable;
+		uniform sampler2D segmentTexture;
 
         void main(void)
         {
-            gl_FragColor = texture2D(segmentTexture, texCoord).rrra;
+			vec4 videoPixel = texture2D(segmentTexture, texCoord);
+			vec4 coloredPixel = texture2D(colorTable, vec2(videoPixel.r, 0.5)).bgra;
+			gl_FragColor = coloredPixel;
         }
     </script>
 
     <canvas id="canvas" width="1024" height="1024"></canvas>
+	
+	<script type="text/javascript">
+		renderer([
+			new Segment("35__0_4.mp4", 128, 1024, 0, 4), 
+			new Segment("35__0_5.mp4", 128, 1024, 0, 5), 
+			new Segment("35__1_4.mp4", 128, 1024, 1, 4), 
+			new Segment("35__1_5.mp4", 128, 1024, 1, 5), 
+			new Segment("35__2_4.mp4", 128, 1024, 2, 4), 
+			new Segment("35__2_5.mp4", 128, 1024, 2, 5)
+		], LUT["SDO-AIA 171 \u212B"]);
+	</script>
 </body>
 </html>

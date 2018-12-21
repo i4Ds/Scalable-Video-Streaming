@@ -17,7 +17,7 @@ function renderer(segments, colorTableArray=LUT['gray']) {
     });
     
 	gl.activeTexture(gl.TEXTURE0);
-	var tex = twgl.createTexture(gl, {
+	var texColor = twgl.createTexture(gl, {
 		width: 256,
 		height: 1,  // 1D texture
 		internalFormat: gl.RGBA,  // 4 channels
@@ -28,15 +28,24 @@ function renderer(segments, colorTableArray=LUT['gray']) {
 	});
 	gl.uniform1i(gl.getUniformLocation(programInfo.program, "colorTable"), 0);
 	
+	gl.activeTexture(gl.TEXTURE1);
+	var texFrame = twgl.createTexture(gl, {
+		width: segments[0].vidRes,
+		height: segments[0].vidRes,
+		internalFormat: gl.LUMINANCE,  // uses only 1 channel, gl.R8 only works in webgl 2.0
+		target: gl.TEXTURE_2D,
+		src: new Uint8Array(segments[0].vidRes*segments[0].vidRes),
+	});
+	gl.uniform1i(gl.getUniformLocation(programInfo.program, "segmentTexture"), 1);
+	
     function render(time) {
         var frameIndex = Math.round(time * 0.032) % 64;
 
         twgl.resizeCanvasToDisplaySize(gl.canvas);
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
         
-
         segments.forEach(function (segment) {
-            segment.render(gl, frameIndex, programInfo);
+            segment.render(gl, frameIndex, programInfo, texFrame);
         });
 
         requestAnimationFrame(render);

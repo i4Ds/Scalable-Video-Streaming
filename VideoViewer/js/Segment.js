@@ -28,20 +28,15 @@ class Segment {
         };
     }
 
-    render(gl, frameIndex, programInfo, lutTex) {
+    render(gl, frameIndex, programInfo, texFrame) {
         if (this.counter > frameIndex) {
-
-			gl.activeTexture(gl.TEXTURE1);
-            var tex = twgl.createTexture(gl, {
-                width: this.vidRes,
+			
+			twgl.setTextureFromArray(gl, texFrame, this.frames[frameIndex], {
+				width: this.vidRes,
                 height: this.vidRes,
-                // gl.R8 only works in webgl 2.0
-                //internalFormat: gl.R8,
-                internalFormat: gl.LUMINANCE,  // uses only 1 channel
+                internalFormat: gl.LUMINANCE,  // uses only 1 channel, gl.R8 only works in webgl 2.0
                 target: gl.TEXTURE_2D,
-                src: this.frames[frameIndex],
-            });
-			gl.uniform1i(gl.getUniformLocation(programInfo.program, "segmentTexture"), 1);
+			});
 			
 			twgl.setUniforms(programInfo, { modelView: this.posMat });
 
