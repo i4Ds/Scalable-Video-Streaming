@@ -488,7 +488,6 @@ var MP4Reader = (function reader() {
       var start = (new Date).getTime();
       this.file = {};
       this.readBoxes(this.stream, this.file);
-      console.info("Parsed stream in " + ((new Date).getTime() - start) + " ms");
     },
     traceSamples: function () {
       var video = this.tracks[1];
