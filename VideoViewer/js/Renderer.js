@@ -61,15 +61,16 @@ class Renderer {
 			}
 		};
 		document.onwheel = function(e) {
-			renderer.setZoom(e.deltaY / Math.abs(e.deltaY) * ZOOM_STEP);  // zoom into center (or also mouse pointer -> stick to edge(s) of mouse?)
+			renderer.setZoom(e.deltaY / Math.abs(e.deltaY) * ZOOM_STEP, e.clientX, e.clientY);
 			e.preventDefault();
 			return false;
 		};
+		/*document.onclick = function(e) { console.log(); }
 		this.gl.canvas.onwheel = function(e) {
-			renderer.setZoom(e.deltaY / Math.abs(e.deltaY) * ZOOM_STEP); // e.offsetX (clientX?)  TODO  zoom into where mouse is
+			renderer.setZoom(e.deltaY / Math.abs(e.deltaY) * ZOOM_STEP);
 			e.preventDefault();
 			return false;
-		};
+		};*/
 	}
 	
 	render(time) {
@@ -95,7 +96,11 @@ class Renderer {
 		requestAnimationFrame(this.render.bind(this));
 	}
 	
-	setZoom(zoomChange) {
+	setZoom(zoomChange, x, y) {
+		// get 0..1 coordinates on old canvas size
+		var canvX = (x + window.scrollX) / this.displayRes;
+		var canvY = (y + window.scrollY) / this.displayRes;
+		
 		this.zoom -= zoomChange;
 		this.zoom = Math.min(MAX_ZOOM, this.zoom);
 		this.zoom = Math.max(MIN_ZOOM, this.zoom);
@@ -105,7 +110,12 @@ class Renderer {
 		this.gl.canvas.height = this.vidRes;
 		
 		this.displayRes = Math.pow(2, this.zoom) * TILE_SIZE;
-		this.gl.canvas.style.width = this.displayRes + "px";
+		this.gl.canvas.style.width = this.displayRes + "px";  // display size of canvas
+		
+		// calculate viewport offset
+		var scrollX = canvX * this.displayRes - x;
+		var scrollY = canvY * this.displayRes - y;
+		window.scrollTo(scrollX, scrollY);
 		
 		this.activateSegments();
 	}

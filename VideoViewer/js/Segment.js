@@ -119,7 +119,7 @@ class Segment {
 						delete this.avc;
 						console.log('video, reader, avc removed', this.canvRes+"-"+this.x+"-"+this.y);
 					} else {
-						console.log('nup', this.canvRes+"-"+this.x+"-"+this.y);
+						console.log('nup', this.canvRes+"-"+this.x+"-"+this.y);  // TODO this occurs sometime! (load error?)
 					}
 				}.bind(this), 100);
 			}
