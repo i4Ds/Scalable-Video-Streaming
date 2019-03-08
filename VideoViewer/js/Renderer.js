@@ -6,8 +6,10 @@ const MAX_ZOOM = 3;
 const ZOOM_STEP = 0.25;
 
 class Renderer {
-	constructor(segments, colorTableArray=LUT['gray']) {
+	constructor(segments, colorTableArray=LUT['gray'], fps=25, frameCount=50) {
 		this.segments = segments;
+		this.fps = fps;
+		this.frameCount = frameCount;
 		this.zoom = 0;
 		this.vidRes = TILE_SIZE;
 		this.displayRes = TILE_SIZE;
@@ -74,7 +76,7 @@ class Renderer {
 	}
 	
 	render(time) {
-		var frameIndex = Math.round(time * 0.032) % 64;
+		var frameIndex = Math.round(time / 1000 * this.fps) % this.frameCount;
 
 		// twgl.resizeCanvasToDisplaySize(this.gl.canvas);
 		this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
