@@ -6,13 +6,18 @@ const MAX_ZOOM = 3;
 const ZOOM_STEP = 0.25;
 
 class Renderer {
-	constructor(segments, colorTableArray=LUT['gray'], fps=25, frameCount=50) {
+	constructor(segments, colorTableArray=LUT['gray'], fps=25, frameCount=50, folders=[]) {
 		this.segments = segments;
+		this.nextSegments = [];
 		this.fps = fps;
 		this.frameCount = frameCount;
 		this.zoom = 0;
 		this.vidRes = TILE_SIZE;
 		this.displayRes = TILE_SIZE;
+		this.folders = folders;  // sequence of videos where each video tree is expected in a separate file folder
+		this.currFolderIdx = 0;
+		this.decoded = 0;
+		this.toBeDecoded = 0;
 		
 		// IE, Edge, Safari only support webgl 1.0 as of 25.09.2017
 		this.gl = document.getElementById("canvas").getContext("experimental-webgl");  //this.gl = document.getElementById("canvas").getContext("webgl2");
@@ -62,28 +67,32 @@ class Renderer {
 				renderer.activateSegments();
 			}
 		};
-		document.onwheel = function(e) {
-			renderer.setZoom(e.deltaY / Math.abs(e.deltaY) * ZOOM_STEP, e.clientX, e.clientY);
+		window.addEventListener("wheel", e => {
+			renderer.setZoom(Math.sign(e.deltaY) * ZOOM_STEP, e.clientX, e.clientY);
 			e.preventDefault();
 			return false;
-		};
-		/*document.onclick = function(e) { console.log(); }
-		this.gl.canvas.onwheel = function(e) {
-			renderer.setZoom(e.deltaY / Math.abs(e.deltaY) * ZOOM_STEP);
-			e.preventDefault();
-			return false;
-		};*/
+		}, {passive: false});
 	}
 	
 	render(time) {
-		var frameIndex = Math.round(time / 1000 * this.fps) % this.frameCount;
+		var frameIndex = Math.round(time / 1000 * this.fps) % (this.frameCount * Math.max(1, this.folders.length));
+		if(frameIndex >= this.frameCount * (this.currFolderIdx+1) || frameIndex < this.frameCount * this.currFolderIdx) {
+			this.segments.forEach(function (seg) { seg.deactivate(); } );  // deactivate all old segments
+			this.segments = this.nextSegments;
+			this.currFolderIdx = (this.currFolderIdx + 1) % this.folders.length;
+			if(this.decoded == this.toBeDecoded) {
+				this.loadNextSegments();
+			}
+			this.activateSegments();
+		}
+		var curFrameIdx = frameIndex % this.frameCount;
 
 		// twgl.resizeCanvasToDisplaySize(this.gl.canvas);
 		this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
 		
 		var nextFrameIsReady = true;
 		for(var i=0; i < this.segments.length; ++i) {
-			if(this.segments[i].isActive && this.segments[i].counter <= frameIndex) {
+			if(this.segments[i].isActive && this.segments[i].counter <= curFrameIdx) {
 				nextFrameIsReady = false;
 				break;
 			}
@@ -91,7 +100,7 @@ class Renderer {
 		
 		if(nextFrameIsReady) {
 			this.segments.forEach(function (segment) {
-				segment.render(this.gl, frameIndex, this.programInfo, this.texFrame);
+				segment.render(this.gl, curFrameIdx, this.programInfo, this.texFrame);
 			}, this);
 		}
 
@@ -129,12 +138,42 @@ class Renderer {
 		var endX = parseInt((window.scrollX + window.innerWidth - frameborder) / cssTileSize);
 		var startY = parseInt((window.scrollY  + frameborder) / cssTileSize);
 		var endY = parseInt((window.scrollY + window.innerHeight - frameborder) / cssTileSize);
+		this.toBeDecoded = 0;
+		this.decoded = 0;
 		this.segments.forEach(function (seg) {
 			if(seg.canvRes == this.vidRes && seg.x >= startX && seg.x <= endX && seg.y >= startY && seg.y <= endY) {
-				seg.activate();  // init (load and decode) if necessary
+				var callback = this.onSegmentDecoded.bind(this);
+				if(seg.activate(callback)) {  // init (load and decode) if necessary
+					++this.toBeDecoded; 
+				}
 			} else {
 				seg.deactivate();
 			}
-		}, this)
+		}, this);
+	}
+	
+	onSegmentDecoded(decodedSegment) {
+		++this.decoded;
+		if(this.folders.length > 0 && this.decoded == this.toBeDecoded && decodedSegment.videoUrl.includes("/" + this.folders[this.currFolderIdx] + "/")) {
+			this.loadNextSegments(); // if decoded segment was of the current folder, load next segments
+		}
+	}
+	
+	loadNextSegments() {
+		this.nextSegments = [];
+		this.toBeDecoded = 0;
+		this.decoded = 0;
+		var currFolderStr = "/" + this.folders[this.currFolderIdx] + "/";
+		var nextFolderStr = "/" + this.folders[(this.currFolderIdx + 1) % this.folders.length] + "/";
+		
+		console.log("load next segment. " + currFolderStr + " -> " + nextFolderStr + "  frames: " + this.segments.length);
+		this.segments.forEach(function (seg) {
+			var newSeg = new Segment(seg.videoUrl.replace(currFolderStr, nextFolderStr), seg.vidRes, seg.canvRes, seg.x, seg.y)
+			if(seg.active) {
+				++this.toBeDecoded;
+				newSeg.init();  // init (load and decode) if necessary
+			}
+			this.nextSegments.push(newSeg);
+		}, this);
 	}
 }

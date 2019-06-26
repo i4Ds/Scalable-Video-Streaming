@@ -4,6 +4,8 @@ class Segment {
     constructor(video, vidRes, canvRes, x, y) {
         this.isInitialized = false;
 		this.isActive = false;
+		this.finishedDecodingCallback = () => {};
+		this.decoded = false;
 		
 		this.videoUrl = video;
         this.counter = 0;
@@ -48,7 +50,8 @@ class Segment {
         }
     }
 	
-	activate() {
+	activate(callback) {
+		this.finishedDecodingCallback = callback;
 		if(!this.isActive) {
 			clearTimeout(this.freeMemEvent); console.log('activated', this.canvRes+"-"+this.x+"-"+this.y);
 			this.isActive = true;
@@ -56,6 +59,7 @@ class Segment {
 				this.init();
 			}
 		}
+		return this.decoded ? false : true;
 	}
 	
 	deactivate() {
@@ -63,6 +67,7 @@ class Segment {
 			this.isActive = false; console.log('deactivated', this.canvRes+"-"+this.x+"-"+this.y);
 			this.freeMemEvent = setTimeout(function() {
 				this.isInitialized = false;
+				this.decoded = false;
 				delete this.frames;  console.log('frames deleted', this.canvRes+"-"+this.x+"-"+this.y);
 			}.bind(this), 2000); // free memory after 2s
 		}
@@ -115,9 +120,11 @@ class Segment {
 				var cleanup = setInterval(function foo() {
 					if(this.counter + 1 == imgIdx) {  // last image with 0 units does not create a onPictureDecoded event
 						clearInterval(cleanup);
+						this.decoded = true;
 						delete this.reader;
 						delete this.avc;
-						console.log('video, reader, avc removed', this.canvRes+"-"+this.x+"-"+this.y);
+						console.log('done decoding: removed video, reader and avc objects', this.canvRes+"-"+this.x+"-"+this.y);
+						this.finishedDecodingCallback(this);
 					} else {
 						console.log('nup', this.canvRes+"-"+this.x+"-"+this.y);  // TODO this occurs sometime! (load error?)
 					}

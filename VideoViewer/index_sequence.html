@@ -1,0 +1,148 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+	<style>
+		html { height:100%; }
+		body { min-height:100%; min-width:100%; display:inline-flex; align-items: center; /*justify-content: center;*/ margin:0; background:#000; }
+		#canvas { display:block; margin: auto; background:url('bg.jpg') no-repeat center center; background-size:97.5%; }
+	</style>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://code.createjs.com/preloadjs-0.6.2.min.js"></script>
+    <script src="lib/twgl-full.js"></script>
+
+    <script src="lib/Decoder.js"></script>
+    <script src="lib/mp4.js"></script>
+    <script src="lib/stream.js"></script>
+
+    <script src="js/Renderer.js"></script>
+    <script src="js/Segment.js"></script>
+	
+	<script src="./LUT.js"></script>
+</head>
+<body>
+	
+    <script id="vs" type="x-shader/x-vertex">
+        uniform mat4 modelView;
+        attribute vec4 vPosition;
+        attribute vec2 vTexCoord;
+        varying vec2 texCoord;
+
+        void main(void)
+        {
+			gl_Position = modelView * vPosition;
+			texCoord = vTexCoord;
+        }
+    </script>
+    <script id="fs" type="x-shader/x-fragment">
+        precision mediump float;
+        varying vec2 texCoord;
+        uniform sampler2D colorTable;
+		uniform sampler2D segmentTexture;
+
+        void main(void)
+        {
+			vec4 videoPixel = texture2D(segmentTexture, texCoord);
+			vec4 coloredPixel = texture2D(colorTable, vec2(videoPixel.r, 0.5)).bgra;
+			gl_FragColor = coloredPixel;
+        }
+    </script>
+
+    <canvas id="canvas"></canvas>
+	
+	<script type="text/javascript">
+		var r = new Renderer([
+				new Segment("../mp4/0/t1_0-0.mp4", 512, 512, 0, 0),
+				
+				new Segment("../mp4/0/t4_0-0.mp4", 512, 1024, 0, 0),
+				new Segment("../mp4/0/t4_0-1.mp4", 512, 1024, 1, 0),
+				new Segment("../mp4/0/t4_1-0.mp4", 512, 1024, 0, 1),
+				new Segment("../mp4/0/t4_1-1.mp4", 512, 1024, 1, 1),
+				
+				new Segment("../mp4/0/t16_0-0.mp4", 512, 2048, 0, 0),
+				new Segment("../mp4/0/t16_0-1.mp4", 512, 2048, 1, 0),
+				new Segment("../mp4/0/t16_0-2.mp4", 512, 2048, 2, 0),
+				new Segment("../mp4/0/t16_0-3.mp4", 512, 2048, 3, 0),
+				new Segment("../mp4/0/t16_1-0.mp4", 512, 2048, 0, 1),
+				new Segment("../mp4/0/t16_1-1.mp4", 512, 2048, 1, 1),
+				new Segment("../mp4/0/t16_1-2.mp4", 512, 2048, 2, 1),
+				new Segment("../mp4/0/t16_1-3.mp4", 512, 2048, 3, 1),
+				new Segment("../mp4/0/t16_2-0.mp4", 512, 2048, 0, 2),
+				new Segment("../mp4/0/t16_2-1.mp4", 512, 2048, 1, 2),
+				new Segment("../mp4/0/t16_2-2.mp4", 512, 2048, 2, 2),
+				new Segment("../mp4/0/t16_2-3.mp4", 512, 2048, 3, 2),
+				new Segment("../mp4/0/t16_3-0.mp4", 512, 2048, 0, 3),
+				new Segment("../mp4/0/t16_3-1.mp4", 512, 2048, 1, 3),
+				new Segment("../mp4/0/t16_3-2.mp4", 512, 2048, 2, 3),
+				new Segment("../mp4/0/t16_3-3.mp4", 512, 2048, 3, 3),
+				
+				new Segment("../mp4/0/t64_0-0.mp4", 512, 4096, 0, 0),
+				new Segment("../mp4/0/t64_0-1.mp4", 512, 4096, 1, 0),
+				new Segment("../mp4/0/t64_0-2.mp4", 512, 4096, 2, 0),
+				new Segment("../mp4/0/t64_0-3.mp4", 512, 4096, 3, 0),
+				new Segment("../mp4/0/t64_0-4.mp4", 512, 4096, 4, 0),
+				new Segment("../mp4/0/t64_0-5.mp4", 512, 4096, 5, 0),
+				new Segment("../mp4/0/t64_0-6.mp4", 512, 4096, 6, 0),
+				new Segment("../mp4/0/t64_0-7.mp4", 512, 4096, 7, 0),
+				new Segment("../mp4/0/t64_1-0.mp4", 512, 4096, 0, 1),
+				new Segment("../mp4/0/t64_1-1.mp4", 512, 4096, 1, 1),
+				new Segment("../mp4/0/t64_1-2.mp4", 512, 4096, 2, 1),
+				new Segment("../mp4/0/t64_1-3.mp4", 512, 4096, 3, 1),
+				new Segment("../mp4/0/t64_1-4.mp4", 512, 4096, 4, 1),
+				new Segment("../mp4/0/t64_1-5.mp4", 512, 4096, 5, 1),
+				new Segment("../mp4/0/t64_1-6.mp4", 512, 4096, 6, 1),
+				new Segment("../mp4/0/t64_1-7.mp4", 512, 4096, 7, 1),
+				new Segment("../mp4/0/t64_2-0.mp4", 512, 4096, 0, 2),
+				new Segment("../mp4/0/t64_2-1.mp4", 512, 4096, 1, 2),
+				new Segment("../mp4/0/t64_2-2.mp4", 512, 4096, 2, 2),
+				new Segment("../mp4/0/t64_2-3.mp4", 512, 4096, 3, 2),
+				new Segment("../mp4/0/t64_2-4.mp4", 512, 4096, 4, 2),
+				new Segment("../mp4/0/t64_2-5.mp4", 512, 4096, 5, 2),
+				new Segment("../mp4/0/t64_2-6.mp4", 512, 4096, 6, 2),
+				new Segment("../mp4/0/t64_2-7.mp4", 512, 4096, 7, 2),
+				new Segment("../mp4/0/t64_3-0.mp4", 512, 4096, 0, 3),
+				new Segment("../mp4/0/t64_3-1.mp4", 512, 4096, 1, 3),
+				new Segment("../mp4/0/t64_3-2.mp4", 512, 4096, 2, 3),
+				new Segment("../mp4/0/t64_3-3.mp4", 512, 4096, 3, 3),
+				new Segment("../mp4/0/t64_3-4.mp4", 512, 4096, 4, 3),
+				new Segment("../mp4/0/t64_3-5.mp4", 512, 4096, 5, 3),
+				new Segment("../mp4/0/t64_3-6.mp4", 512, 4096, 6, 3),
+				new Segment("../mp4/0/t64_3-7.mp4", 512, 4096, 7, 3),
+				new Segment("../mp4/0/t64_4-0.mp4", 512, 4096, 0, 4),
+				new Segment("../mp4/0/t64_4-1.mp4", 512, 4096, 1, 4),
+				new Segment("../mp4/0/t64_4-2.mp4", 512, 4096, 2, 4),
+				new Segment("../mp4/0/t64_4-3.mp4", 512, 4096, 3, 4),
+				new Segment("../mp4/0/t64_4-4.mp4", 512, 4096, 4, 4),
+				new Segment("../mp4/0/t64_4-5.mp4", 512, 4096, 5, 4),
+				new Segment("../mp4/0/t64_4-6.mp4", 512, 4096, 6, 4),
+				new Segment("../mp4/0/t64_4-7.mp4", 512, 4096, 7, 4),
+				new Segment("../mp4/0/t64_5-0.mp4", 512, 4096, 0, 5),
+				new Segment("../mp4/0/t64_5-1.mp4", 512, 4096, 1, 5),
+				new Segment("../mp4/0/t64_5-2.mp4", 512, 4096, 2, 5),
+				new Segment("../mp4/0/t64_5-3.mp4", 512, 4096, 3, 5),
+				new Segment("../mp4/0/t64_5-4.mp4", 512, 4096, 4, 5),
+				new Segment("../mp4/0/t64_5-5.mp4", 512, 4096, 5, 5),
+				new Segment("../mp4/0/t64_5-6.mp4", 512, 4096, 6, 5),
+				new Segment("../mp4/0/t64_5-7.mp4", 512, 4096, 7, 5),
+				new Segment("../mp4/0/t64_6-0.mp4", 512, 4096, 0, 6),
+				new Segment("../mp4/0/t64_6-1.mp4", 512, 4096, 1, 6),
+				new Segment("../mp4/0/t64_6-2.mp4", 512, 4096, 2, 6),
+				new Segment("../mp4/0/t64_6-3.mp4", 512, 4096, 3, 6),
+				new Segment("../mp4/0/t64_6-4.mp4", 512, 4096, 4, 6),
+				new Segment("../mp4/0/t64_6-5.mp4", 512, 4096, 5, 6),
+				new Segment("../mp4/0/t64_6-6.mp4", 512, 4096, 6, 6),
+				new Segment("../mp4/0/t64_6-7.mp4", 512, 4096, 7, 6),
+				new Segment("../mp4/0/t64_7-0.mp4", 512, 4096, 0, 7),
+				new Segment("../mp4/0/t64_7-1.mp4", 512, 4096, 1, 7),
+				new Segment("../mp4/0/t64_7-2.mp4", 512, 4096, 2, 7),
+				new Segment("../mp4/0/t64_7-3.mp4", 512, 4096, 3, 7),
+				new Segment("../mp4/0/t64_7-4.mp4", 512, 4096, 4, 7),
+				new Segment("../mp4/0/t64_7-5.mp4", 512, 4096, 5, 7),
+				new Segment("../mp4/0/t64_7-6.mp4", 512, 4096, 6, 7),
+				new Segment("../mp4/0/t64_7-7.mp4", 512, 4096, 7, 7),
+			], LUT["SDO-AIA 171 \u212B"], 25, 50, ["0", "1", "2"]);
+		requestAnimationFrame(r.render.bind(r));
+	</script>
+</body>
+</html>
