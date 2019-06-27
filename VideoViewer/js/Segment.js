@@ -4,7 +4,6 @@ class Segment {
     constructor(video, vidRes, canvRes, x, y) {
         this.isInitialized = false;
 		this.isActive = false;
-		this.finishedDecodingCallback = () => {};
 		this.decoded = false;
 		
 		this.videoUrl = video;
@@ -50,8 +49,7 @@ class Segment {
         }
     }
 	
-	activate(callback) {
-		this.finishedDecodingCallback = callback;
+	activate() {
 		if(!this.isActive) {
 			clearTimeout(this.freeMemEvent); console.log('activated', this.canvRes+"-"+this.x+"-"+this.y);
 			this.isActive = true;
@@ -59,7 +57,6 @@ class Segment {
 				this.init();
 			}
 		}
-		return this.decoded ? false : true;
 	}
 	
 	deactivate() {
@@ -124,9 +121,8 @@ class Segment {
 						delete this.reader;
 						delete this.avc;
 						console.log('done decoding: removed video, reader and avc objects', this.canvRes+"-"+this.x+"-"+this.y);
-						this.finishedDecodingCallback(this);
 					} else {
-						console.log('nup', this.canvRes+"-"+this.x+"-"+this.y);  // TODO this occurs sometime! (load error?)
+						console.warn('nup', this.canvRes+"-"+this.x+"-"+this.y);  // TODO this occurs sometime! (load error?)
 					}
 				}.bind(this), 100);
 			}
