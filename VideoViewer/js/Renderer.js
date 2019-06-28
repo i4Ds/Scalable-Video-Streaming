@@ -2,7 +2,7 @@
 
 const TILE_SIZE = 512;
 const MIN_ZOOM = 0;
-const MAX_ZOOM = 3;
+const MAX_ZOOM = 3.5;
 const ZOOM_STEP = 0.25;
 
 class Renderer {
@@ -16,6 +16,7 @@ class Renderer {
 		this.displayRes = TILE_SIZE;
 		this.folders = folders;  // sequence of videos where each video tree is expected in a separate file folder
 		this.currFolderIdx = 0;
+		this.playing = false;
 		
 		// IE, Edge, Safari only support webgl 1.0 as of 25.09.2017
 		this.gl = document.getElementById("canvas").getContext("experimental-webgl");  //this.gl = document.getElementById("canvas").getContext("webgl2");
@@ -24,7 +25,7 @@ class Renderer {
 			return;
 		}
 		
-		this.setZoom(0);
+		this.setZoomFromWheel(0);
 		this.activateSegments();
 		
 
@@ -66,10 +67,19 @@ class Renderer {
 			}
 		};
 		window.addEventListener("wheel", e => {
-			renderer.setZoom(Math.sign(e.deltaY) * ZOOM_STEP, e.clientX, e.clientY);
+			renderer.setZoomFromWheel(Math.sign(e.deltaY) * ZOOM_STEP, e.clientX, e.clientY);
 			e.preventDefault();
 			return false;
 		}, {passive: false});
+	}
+	
+	start() {
+		this.playing = true;
+		requestAnimationFrame(this.render.bind(this));
+	}
+	
+	stop() {
+		this.playing = false;
 	}
 	
 	render(time) {
@@ -85,9 +95,6 @@ class Renderer {
 			this.activateSegments();  // activate new segments
 		}
 		var curFrameIdx = frameIndex % this.frameCount;
-
-		// twgl.resizeCanvasToDisplaySize(this.gl.canvas);
-		this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
 		
 		var nextFrameIsReady = true;
 		var allDecoded = true;
@@ -105,16 +112,21 @@ class Renderer {
 			this.loadNextSegments();
 		}
 		
-		if(nextFrameIsReady) {
-			this.segments.forEach(function (segment) {
-				segment.render(this.gl, curFrameIdx, this.programInfo, this.texFrame);
-			}, this);
+		if(this.playing) {
+			// twgl.resizeCanvasToDisplaySize(this.gl.canvas);
+			this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
+			
+			if(nextFrameIsReady) {
+				this.segments.forEach(function (segment) {
+					segment.render(this.gl, curFrameIdx, this.programInfo, this.texFrame);
+				}, this);
+			}
+			
+			requestAnimationFrame(this.render.bind(this));
 		}
-
-		requestAnimationFrame(this.render.bind(this));
 	}
 	
-	setZoom(zoomChange, x, y) {
+	setZoomFromWheel(zoomChange, x, y) {
 		// get 0..1 coordinates on old canvas size
 		var canvX = (x + window.scrollX) / this.displayRes;
 		var canvY = (y + window.scrollY) / this.displayRes;
@@ -123,17 +135,29 @@ class Renderer {
 		this.zoom = Math.min(MAX_ZOOM, this.zoom);
 		this.zoom = Math.max(MIN_ZOOM, this.zoom);
 		
+		this.displayRes = Math.pow(2, this.zoom) * TILE_SIZE;
+		this.gl.canvas.style.width = this.displayRes + "px";  // display size of canvas
+		
 		this.vidRes = Math.pow(2, parseInt(this.zoom + ZOOM_STEP)) * TILE_SIZE;
 		this.gl.canvas.width = this.vidRes;
 		this.gl.canvas.height = this.vidRes;
-		
-		this.displayRes = Math.pow(2, this.zoom) * TILE_SIZE;
-		this.gl.canvas.style.width = this.displayRes + "px";  // display size of canvas
 		
 		// calculate viewport offset
 		var scrollX = canvX * this.displayRes - x;
 		var scrollY = canvY * this.displayRes - y;
 		window.scrollTo(scrollX, scrollY);
+		
+		this.activateSegments();
+	}
+	
+	setZoomFromPinch() { 
+		this.displayRes = parseFloat(this.gl.canvas.style.width);
+		this.zoom = Math.log2(this.displayRes / TILE_SIZE);
+		this.zoom = Math.round(this.zoom/ZOOM_STEP)*ZOOM_STEP;  // snap to zoom step
+		
+		this.vidRes = Math.pow(2, parseInt(this.zoom)) * TILE_SIZE;
+		this.gl.canvas.width = this.vidRes;
+		this.gl.canvas.height = this.vidRes;
 		
 		this.activateSegments();
 	}

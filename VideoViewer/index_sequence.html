@@ -2,6 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8" />
+	<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
     <title></title>
 	<style>
 		html { height:100%; }
@@ -18,11 +19,11 @@
 
     <script src="js/Renderer.js"></script>
     <script src="js/Segment.js"></script>
+	<script src="js/pinch-zoom.js"></script>
 	
 	<script src="./LUT.js"></script>
 </head>
 <body>
-	
     <script id="vs" type="x-shader/x-vertex">
         uniform mat4 modelView;
         attribute vec4 vPosition;
@@ -142,7 +143,8 @@
 				new Segment("../mp4/0/t64_7-6.mp4", 512, 4096, 6, 7),
 				new Segment("../mp4/0/t64_7-7.mp4", 512, 4096, 7, 7),
 			], LUT["SDO-AIA 171 \u212B"], 25, 50, ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]);
-		requestAnimationFrame(r.render.bind(r));
+		r.start();
+		init_pinch_zoom(r.setZoomFromPinch.bind(r));
 	</script>
 </body>
 </html>
