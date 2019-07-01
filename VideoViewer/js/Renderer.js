@@ -54,8 +54,9 @@ class Renderer {
 		});
 		this.gl.uniform1i(this.gl.getUniformLocation(this.programInfo.program, "segmentTexture"), 1);
 
-		
 		var renderer = this;
+		
+		// add functions for mouse interactinos
 		this.gl.canvas.onmousedown = function(e) { renderer.mousedown = [e.screenX + window.scrollX, e.screenY + window.scrollY]; };
 		this.gl.canvas.onmouseup = function(e) { renderer.mousedown = null; };
 		this.gl.canvas.onmouseleave = function(e) { renderer.mousedown = null; };
@@ -71,6 +72,32 @@ class Renderer {
 			e.preventDefault();
 			return false;
 		}, {passive: false});
+		
+		// add functions for touch interactions
+		var mc = new Hammer.Manager(this.gl.canvas, {
+			touchAction: 'pan-x pan-y',
+			recognizers: [ [Hammer.Pinch, {}] ]     //  [Hammer.Pan, { direction: Hammer.DIRECTION_VERTICAL }],
+		});
+		mc.on('pinch', function(ev) {
+			if(ev.eventType > 2) { // event finished. 1 = start, 2 = move, 4 = end, 8 = cancel
+				ev.target.style.width = parseFloat(ev.target.style.width)*ev.scale + "px"; 
+				ev.target.style.transform = "";
+				renderer.setZoomFromPinch();
+			} else {
+				if(ev.eventType == Hammer.INPUT_START) {
+					renderer.pinchCenter = {  // get 0..1 coordinates on old canvas size
+						x: (ev.center.x + window.scrollX) / renderer.displayRes,
+						y: (ev.center.y + window.scrollY) / renderer.displayRes
+					}
+				}
+				ev.target.style.transform = "scale(" + ev.scale + ")";
+				
+				// calculate viewport offset
+				var scrollX = renderer.pinchCenter.x * renderer.displayRes * ev.scale - ev.center.x;
+				var scrollY = renderer.pinchCenter.y * renderer.displayRes * ev.scale - ev.center.y;
+				window.scrollTo(scrollX, scrollY);
+			}
+		});
 	}
 	
 	start() {
@@ -142,11 +169,7 @@ class Renderer {
 		this.gl.canvas.width = this.vidRes;
 		this.gl.canvas.height = this.vidRes;
 		
-		// calculate viewport offset
-		var scrollX = canvX * this.displayRes - x;
-		var scrollY = canvY * this.displayRes - y;
-		window.scrollTo(scrollX, scrollY);
-		
+		window.scrollTo(canvX * this.displayRes - x, canvY * this.displayRes - y);  // calculate viewport offset
 		this.activateSegments();
 	}
 	

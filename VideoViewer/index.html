@@ -2,12 +2,12 @@
 <html>
 <head>
     <meta charset="utf-8" />
-	<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+	<meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
     <title></title>
 	<style>
 		html { height:100%; }
 		body { min-height:100%; min-width:100%; display:inline-flex; align-items: center; /*justify-content: center;*/ margin:0; background:#000; }
-		#canvas { display:block; margin: auto; background:url('bg.jpg') no-repeat center center; background-size:97.5%; }
+		#canvas { display:block; margin: auto; background:url('bg.jpg') no-repeat center center; background-size:97.5%; transform-origin:0 0; }
 	</style>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
     <script src="https://code.createjs.com/preloadjs-0.6.2.min.js"></script>
@@ -16,10 +16,10 @@
     <script src="lib/Decoder.js"></script>
     <script src="lib/mp4.js"></script>
     <script src="lib/stream.js"></script>
+	<script src="lib/hammer-2.0.8-min.js"></script>
 	
     <script src="js/Renderer.js"></script>
     <script src="js/Segment.js"></script>
-	<script src="js/pinch-zoom.js"></script>
 	
 	<script src="./LUT.js"></script>
 </head>
@@ -144,7 +144,6 @@
 				new Segment("http://server1122.cs.technik.fhnw.ch:81/mp4/t64_7-7l.mp4", 512, 4096, 7, 7),
 			], LUT["SDO-AIA 171 \u212B"], 25, 50);
 		r.start();
-		init_pinch_zoom(r.setZoomFromPinch.bind(r));
 	</script>
 </body>
 </html>
