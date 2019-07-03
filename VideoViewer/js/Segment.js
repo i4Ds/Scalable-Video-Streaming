@@ -30,6 +30,10 @@ class Segment {
             vTexCoord: [0, 1, 1, 1, 1, 0, 0, 0],
             indices: [0, 1, 2, 0, 2, 3],
         };
+		
+		this.time = new Date(); // for measuring decoding time
+		this.decodingTime = 0;
+		this.decodedFrames = 0;
     }
 
     render(gl, frameIndex, programInfo, texFrame) {
@@ -100,6 +104,7 @@ class Segment {
         var pps = _avc.pps[0];
 
         /* Decode Sequence & Picture Parameter Sets */
+		this.time = new Date();
         this.avc.decode(sps);
         this.avc.decode(pps);
 
@@ -120,11 +125,14 @@ class Segment {
 						this.decoded = true;
 						delete this.reader;
 						delete this.avc;
-						console.log('done decoding: removed video, reader and avc objects', this.canvRes+"-"+this.x+"-"+this.y);
+						var ms = new Date() - this.time;
+						console.log('done decoding (' + ms + 'ms): removed video, reader and avc objects', this.canvRes+"-"+this.x+"-"+this.y);
+						this.decodingTime += ms;
+						this.decodedFrames += this.counter;
 					} else {
 						console.warn('nup', this.canvRes+"-"+this.x+"-"+this.y);  // TODO this occurs sometime! (load error?)
 					}
-				}.bind(this), 100);
+				}.bind(this), 10);  // 100
 			}
 		}.bind(this), 1);
     }

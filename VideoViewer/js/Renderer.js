@@ -18,6 +18,9 @@ class Renderer {
 		this.currFolderIdx = 0;
 		this.playing = false;
 		
+		this.totalDecodedFrames = 0;
+		this.totalDecodingTime = 0;
+		
 		// IE, Edge, Safari only support webgl 1.0 as of 25.09.2017
 		this.gl = document.getElementById("canvas").getContext("experimental-webgl");  //this.gl = document.getElementById("canvas").getContext("webgl2");
 		if (!this.gl) {
@@ -115,7 +118,11 @@ class Renderer {
 			if(this.nextSegments == null) {
 				this.loadNextSegments();
 			}
-			this.segments.forEach(function (seg) { seg.deactivate(); } );  // deactivate all old segments
+			this.segments.forEach(function (seg) {
+				this.totalDecodedFrames += seg.decodedFrames; seg.decodedFrames = 0;
+				this.totalDecodingTime += seg.decodingTime; seg.decodingTime = 0;
+				seg.deactivate();
+			}, this);  // deactivate all old segments
 			this.segments = this.nextSegments;
 			this.nextSegments = null;
 			this.currFolderIdx = (this.currFolderIdx + 1) % this.folders.length;
@@ -213,5 +220,10 @@ class Renderer {
 			this.nextSegments.push(newSeg);
 		}, this);
 		console.log("load next segment. " + currFolderStr + " -> " + nextFolderStr + "  frames: " + this.segments.length);
+	}
+	
+	getAvgDecodingTime() {
+		if(this.totalDecodedFrames == 0) { return 0; }
+		return Math.round(this.totalDecodingTime / this.totalDecodedFrames * 1000) / 1000;
 	}
 }

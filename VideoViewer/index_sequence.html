@@ -8,6 +8,7 @@
 		html { height:100%; }
 		body { min-height:100%; min-width:100%; display:inline-flex; align-items: center; /*justify-content: center;*/ margin:0; background:#000; }
 		#canvas { display:block; margin: auto; background:url('bg.jpg') no-repeat center center; background-size:97.5%; transform-origin:0 0; }
+		#info { position:fixed; top:0; left:0; color:#FFF; font-size:16px; }
 	</style>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
     <script src="https://code.createjs.com/preloadjs-0.6.2.min.js"></script>
@@ -51,6 +52,7 @@
     </script>
 
     <canvas id="canvas"></canvas>
+	<div id="info"></div>
 	
 	<script type="text/javascript">
 		var r = new Renderer([
@@ -144,6 +146,8 @@
 				new Segment("../mp4/0/t64_7-7.mp4", 512, 4096, 7, 7),
 			], LUT["SDO-AIA 171 \u212B"], 25, 50, ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]);
 		r.start();
+		
+		setInterval(() => document.querySelector('#info').innerText = r.getAvgDecodingTime() + "ms", 1000);
 	</script>
 </body>
 </html>
