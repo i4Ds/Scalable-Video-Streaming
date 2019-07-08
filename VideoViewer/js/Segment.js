@@ -81,7 +81,7 @@ class Segment {
 		
         this.avc = new Decoder();
         this.avc.onPictureDecoded = function(buffer, width, height, infos) {
-            var data = new Uint8Array(buffer, 0, this.vidRes * this.vidRes);
+            var data = new Uint8Array(buffer.slice(0, this.vidRes * this.vidRes), 0, this.vidRes * this.vidRes);
             this.frames[this.counter++] = data;
         }.bind(this);
 
@@ -130,7 +130,7 @@ class Segment {
 						this.decodingTime += ms;
 						this.decodedFrames += this.counter;
 					} else {
-						console.warn('nup', this.canvRes+"-"+this.x+"-"+this.y);  // TODO this occurs sometime! (load error?)
+						console.warn('nup! ' + this.counter + "/" + imgIdx, this.canvRes+"-"+this.x+"-"+this.y);  // TODO this occurs sometime! (load error?)
 					}
 				}.bind(this), 10);  // 100
 			}
