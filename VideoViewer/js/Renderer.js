@@ -1,25 +1,41 @@
 ﻿"use strict";
 
-const TILE_SIZE = 512;
 const MIN_ZOOM = 0;
 const MAX_ZOOM = 3.5;
-const ZOOM_STEP = 0.25;
+const ZOOM_STEP = 0.25;  // zooming factor for mouse wheel scroll action
 
 class Renderer {
-	constructor(segments, colorTableArray=LUT['gray'], fps=25, frameCount=50, folders=[]) {
-		this.segments = segments;
-		this.nextSegments = null;
-		this.fps = fps;
+	constructor(videoBasePath, videos, colorTableArray=LUT['gray'], fps=25, frameCount=50, tileSize=512, fullVideoSize=4096) {
+		this.timePerFrameMs = 1000/fps; //this.fps = fps;
 		this.frameCount = frameCount;
+		this.tileSize = tileSize;
 		this.zoom = 0;
-		this.vidRes = TILE_SIZE;
-		this.displayRes = TILE_SIZE;
-		this.folders = folders;  // sequence of videos where each video tree is expected in a separate file folder
-		this.currFolderIdx = 0;
-		this.playing = false;
+		this.vidRes = tileSize;  // width of the actual video resolution
+		this.displayRes = tileSize;  // width of canvas in px
+		this.videos = videos;  // sequence of videos where each video tree is expected in a separate file folder
+		this.currVideoIdx = 0;  // index of the currently active video segment
+		this.playing = false;  // suspend animation loop
+		this.lastFrameTime = -666;  // (theoretical, because corrected) time of last frame draw (actual draws happen at 60fps)
+		this.frameIndex = -1;  // current frame index
 		
-		this.totalDecodedFrames = 0;
-		this.totalDecodingTime = 0;
+		this.recentFrameUpdates = Array(fps).fill(0);  // save a bunch of last screen updates to calculate the display FPS
+		
+		// use fullVideoSize and tileSize to generate tiles
+		this.tiles = [];
+		var powOffset = Math.log2(tileSize);
+		for(var lvl = 0; Math.pow(2, lvl+powOffset) <= fullVideoSize; ++lvl) {
+			var videoUrl = videoBasePath.replace("{lvl}", Math.pow(2, 2*lvl));  // ../mp4/{vid}/t{ 1 4 16 64 }_{x}-{y}.mp4  ->  ../mp4/0/t1_0-0.mp4
+			var n = Math.pow(2, lvl);  // [1, 2, 4, 8]
+			for(var y=0; y < n; ++y) {
+				for(var x=0; x < n; ++x) {
+					var videoArray = [];
+					videos.forEach((vid) => {
+						videoArray.push(videoUrl.replace('{x}', x).replace('{y}', y).replace('{vid}', vid));
+					});
+					this.tiles.push(new Tile(videoArray, tileSize, n*tileSize, x, y));
+				}
+			}
+		}
 		
 		// IE, Edge, Safari only support webgl 1.0 as of 25.09.2017
 		this.gl = document.getElementById("canvas").getContext("experimental-webgl");  //this.gl = document.getElementById("canvas").getContext("webgl2");
@@ -29,7 +45,7 @@ class Renderer {
 		}
 		
 		this.setZoomFromWheel(0);
-		this.activateSegments();
+		this.activateTiles();
 		
 
 		this.programInfo = twgl.createProgramInfo(this.gl, ["vs", "fs"]);
@@ -49,11 +65,11 @@ class Renderer {
 		
 		this.gl.activeTexture(this.gl.TEXTURE1);
 		this.texFrame = twgl.createTexture(this.gl, {
-			width: TILE_SIZE,
-			height: TILE_SIZE,
+			width: this.tileSize,
+			height: this.tileSize,
 			internalFormat: this.gl.LUMINANCE,  // uses only 1 channel, this.gl.R8 only works in webgl 2.0
 			target: this.gl.TEXTURE_2D,
-			src: new Uint8Array(TILE_SIZE*TILE_SIZE),
+			src: new Uint8Array(this.tileSize*this.tileSize),
 		});
 		this.gl.uniform1i(this.gl.getUniformLocation(this.programInfo.program, "segmentTexture"), 1);
 
@@ -67,7 +83,7 @@ class Renderer {
 			if(renderer.mousedown != null) {
 				window.scrollTo(renderer.mousedown[0] - e.screenX, renderer.mousedown[1] - e.screenY);
 				renderer.mousedown = [e.screenX + window.scrollX, e.screenY + window.scrollY];
-				renderer.activateSegments();
+				renderer.activateTiles();
 			}
 		};
 		window.addEventListener("wheel", e => {
@@ -112,51 +128,46 @@ class Renderer {
 		this.playing = false;
 	}
 	
-	render(time) {
-		var frameIndex = Math.round(time / 1000 * this.fps) % (this.frameCount * Math.max(1, this.folders.length));
-		if(frameIndex >= this.frameCount * (this.currFolderIdx+1) || frameIndex < this.frameCount * this.currFolderIdx) {
-			if(this.nextSegments == null) {
-				this.loadNextSegments();
-			}
-			this.segments.forEach(function (seg) {
-				this.totalDecodedFrames += seg.decodedFrames; seg.decodedFrames = 0;
-				this.totalDecodingTime += seg.decodingTime; seg.decodingTime = 0;
-				seg.deactivate();
-			}, this);  // deactivate all old segments
-			this.segments = this.nextSegments;
-			this.nextSegments = null;
-			this.currFolderIdx = (this.currFolderIdx + 1) % this.folders.length;
-			this.activateSegments();  // activate new segments
+	render(time) { 
+		if(!this.playing) { return; }  // abort loop entirely
+		
+		requestAnimationFrame(this.render.bind(this));
+		var elapsed = time - this.lastFrameTime; 
+		if(elapsed < this.timePerFrameMs) { return; }  // skip this frame
+		
+		this.lastFrameTime = time - (elapsed % this.timePerFrameMs);  // update last draw time with respect to this function running at fixed frame rate (usually 60fps)
+	
+		this.frameIndex = (this.frameIndex + 1) % (this.frameCount * this.videos.length);
+		if(this.frameIndex >= this.frameCount * (this.currVideoIdx+1) || this.frameIndex < this.frameCount * this.currVideoIdx) {
+			// advance to next video segment if frame to be drawn is not in the current segment
+			this.currVideoIdx = (this.currVideoIdx + 1) % this.videos.length;
+			this.tiles.forEach(function (tile) { tile.nextSegment(); }, this);
 		}
-		var curFrameIdx = frameIndex % this.frameCount;
+		var curFrameIdx = this.frameIndex % this.frameCount;
 		
 		var nextFrameIsReady = true;
-		var allDecoded = true;
-		for(var i=0; i < this.segments.length; ++i) {
-			if(!this.segments[i].decoded) {
-				allDecoded = false;
-			}
-			if(this.segments[i].isActive && this.segments[i].counter <= curFrameIdx) {
+		for(var i=0; i < this.tiles.length; ++i) {
+			if(this.tiles[i].isActive && this.tiles[i].frames[this.currVideoIdx].length <= curFrameIdx) {
 				nextFrameIsReady = false;
-				break;
+				break; 
 			}
 		}
-		
-		if(allDecoded && this.nextSegments !== null) {
-			this.loadNextSegments();
-		}
-		
-		if(this.playing) {
+		if(nextFrameIsReady) {
 			// twgl.resizeCanvasToDisplaySize(this.gl.canvas);
 			this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
+		
+			this.tiles.forEach(function (tile) {
+				tile.render(this.gl, curFrameIdx, this.programInfo, this.texFrame);
+			}, this);
 			
-			if(nextFrameIsReady) {
-				this.segments.forEach(function (segment) {
-					segment.render(this.gl, curFrameIdx, this.programInfo, this.texFrame);
-				}, this);
-			}
-			
-			requestAnimationFrame(this.render.bind(this));
+			this.recentFrameUpdates.push(time);
+			this.recentFrameUpdates.shift();
+		} else {
+			console.warn("next frame isn't ready, buffering..."); 
+			this.lastFrameTime += 500; // pause execution for a bit until enough is cached
+			// todo consider adjusting frame rate and undo increment of frameIndex and currVideoIdx (also in every tile) bc otherwise one frame is skipped...
+			// framerate: could (generally) be done depending on pre-buffered frames, when enough frames are ready, play "full 25 fps".
+			// undo increment: after a stop one skipped frame isnt a big problem.
 		}
 	}
 	
@@ -169,61 +180,49 @@ class Renderer {
 		this.zoom = Math.min(MAX_ZOOM, this.zoom);
 		this.zoom = Math.max(MIN_ZOOM, this.zoom);
 		
-		this.displayRes = Math.pow(2, this.zoom) * TILE_SIZE;
+		this.displayRes = Math.pow(2, this.zoom) * this.tileSize;
 		this.gl.canvas.style.width = this.displayRes + "px";  // display size of canvas
 		
-		this.vidRes = Math.pow(2, parseInt(this.zoom + ZOOM_STEP)) * TILE_SIZE;
+		this.vidRes = Math.pow(2, parseInt(this.zoom + ZOOM_STEP)) * this.tileSize;
 		this.gl.canvas.width = this.vidRes;
 		this.gl.canvas.height = this.vidRes;
 		
 		window.scrollTo(canvX * this.displayRes - x, canvY * this.displayRes - y);  // calculate viewport offset
-		this.activateSegments();
+		this.activateTiles();
 	}
 	
 	setZoomFromPinch() { 
 		this.displayRes = parseFloat(this.gl.canvas.style.width);
-		this.zoom = Math.log2(this.displayRes / TILE_SIZE);
+		this.zoom = Math.log2(this.displayRes / this.tileSize);
 		this.zoom = Math.round(this.zoom/ZOOM_STEP)*ZOOM_STEP;  // snap to zoom step
 		
-		this.vidRes = Math.pow(2, parseInt(this.zoom)) * TILE_SIZE;
+		this.vidRes = Math.pow(2, parseInt(this.zoom)) * this.tileSize;
 		this.gl.canvas.width = this.vidRes;
 		this.gl.canvas.height = this.vidRes;
 		
-		this.activateSegments();
+		this.activateTiles();
 	}
 	
-	activateSegments() {
+	activateTiles() {
 		var frameborder = 0;
-		var cssTileSize = TILE_SIZE * this.displayRes / this.vidRes;
+		var cssTileSize = this.tileSize * this.displayRes / this.vidRes;
 		var startX = parseInt((window.scrollX + frameborder) / cssTileSize);
 		var endX = parseInt((window.scrollX + window.innerWidth - frameborder) / cssTileSize);
 		var startY = parseInt((window.scrollY  + frameborder) / cssTileSize);
 		var endY = parseInt((window.scrollY + window.innerHeight - frameborder) / cssTileSize);
-		this.segments.forEach(function (seg) {
-			if(seg.canvRes == this.vidRes && seg.x >= startX && seg.x <= endX && seg.y >= startY && seg.y <= endY) {
-				seg.activate();  // init (load and decode) if necessary
+		this.tiles.forEach(function (tile) {
+			if(tile.canvRes == this.vidRes && tile.x >= startX && tile.x <= endX && tile.y >= startY && tile.y <= endY) {
+				tile.activate();  // init (load and decode) if necessary
 			} else {
-				seg.deactivate();
+				tile.deactivate();
 			}
 		}, this);
-	}
-	
-	loadNextSegments() {
-		var currFolderStr = "/" + this.folders[this.currFolderIdx] + "/";
-		var nextFolderStr = "/" + this.folders[(this.currFolderIdx + 1) % this.folders.length] + "/";
-		this.nextSegments = [];
-		this.segments.forEach(function (seg) {
-			var newSeg = new Segment(seg.videoUrl.replace(currFolderStr, nextFolderStr), seg.vidRes, seg.canvRes, seg.x, seg.y)
-			if(seg.active) {  // if the newly added segment corresponds to a current active one, init (load and decode) next one
-				newSeg.init();  // init (load and decode) if necessary
-			}
-			this.nextSegments.push(newSeg);
-		}, this);
-		console.log("load next segment. " + currFolderStr + " -> " + nextFolderStr + "  frames: " + this.segments.length);
 	}
 	
 	getAvgDecodingTime() {
-		if(this.totalDecodedFrames == 0) { return 0; }
-		return Math.round(this.totalDecodingTime / this.totalDecodedFrames * 1000) / 1000;
+		var avgFrameTime = (this.recentFrameUpdates[this.recentFrameUpdates.length-1] - this.recentFrameUpdates[0]) / (this.recentFrameUpdates.length - 1);
+
+		if(this.totalDecodedFrames <= 0) { return 0; }
+		return Math.round(1000 / avgFrameTime);
 	}
 }
