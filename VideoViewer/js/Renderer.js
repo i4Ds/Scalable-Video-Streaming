@@ -22,8 +22,8 @@ class Renderer {
 		
 		// use fullVideoSize and tileSize to generate tiles
 		this.tiles = [];
-		var powOffset = Math.log2(tileSize);
-		for(var lvl = 0; Math.pow(2, lvl+powOffset) <= fullVideoSize; ++lvl) {
+		var powOffset = Math.log2(tileSize); // Math.log(512) -> 9
+		for(var lvl = 0; Math.pow(2, lvl+powOffset) <= fullVideoSize; ++lvl) { // runs 4 times
 			var videoUrl = videoBasePath.replace("{lvl}", Math.pow(2, 2*lvl));  // ../mp4/{vid}/t{ 1 4 16 64 }_{x}-{y}.mp4  ->  ../mp4/0/t1_0-0.mp4
 			var n = Math.pow(2, lvl);  // [1, 2, 4, 8]
 			for(var y=0; y < n; ++y) {
@@ -32,7 +32,7 @@ class Renderer {
 					videos.forEach((vid) => {
 						videoArray.push(videoUrl.replace('{x}', x).replace('{y}', y).replace('{vid}', vid));
 					});
-					this.tiles.push(new Tile(videoArray, tileSize, n*tileSize, x, y));
+					this.tiles.push(new Tile(videoArray, tileSize, n*tileSize, x, y)); // addnew Tile(["{...}/0/t1_0-0.mp4", - "{...}/12/t1_0-0.mp4",], 512, n*tileSize, x, y)
 				}
 			}
 		}

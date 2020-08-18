@@ -14,7 +14,7 @@ class Tile {
 		this.nBuffer = nBuffer;
 		
 		// select random nCache segments to cache for this tile
-		this.cacheSegments = Array(videoUrls.length).fill(0).map((e, i) => i);  // array 0..n
+		this.cacheSegments = Array(videoUrls.length).fill(0).map((e, i) => i);  // array 0..n //[0..12].length -> 13
 		while(this.cacheSegments.length > nCache) {  // remove random entry until nCache elements are left
 			this.cacheSegments.splice(Math.floor(Math.random() * Math.floor(this.cacheSegments.length)), 1);
 		}
@@ -24,7 +24,7 @@ class Tile {
         this.x = x;
         this.y = y;
 
-        var maxXY = canvRes / vidRes;
+		var maxXY = canvRes / vidRes; // [1,2,4,8]
         var scale = 1 / maxXY;
         var offX = scale * (2*x - maxXY + 1);
         var offY = scale * (2*y - maxXY + 1);
