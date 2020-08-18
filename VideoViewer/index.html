@@ -1,0 +1,71 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+	<meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
+    <title></title>
+	<style>
+		html { height:100%; }
+		body { min-height:100%; min-width:100%; display:inline-flex; align-items: center; /*justify-content: center;*/ margin:0; background:#000; }
+		#canvas { display:block; margin: auto; background:url('bg.jpg') no-repeat center center; background-size:97.5%; transform-origin:0 0; }
+		#info { position:fixed; top:0; left:0; color:#FFF; font-size:16px; }
+	</style>
+    <script src="https://code.createjs.com/preloadjs-0.6.2.min.js"></script>
+    <script src="lib/twgl-full.js"></script>
+
+    <script src="lib/Decoder2018.js"></script>
+    <script src="lib/mp4.js"></script>
+    <script src="lib/stream.js"></script>
+	<script src="lib/hammer-2.0.8-min.js"></script>
+
+    <script src="js/Renderer.js"></script>
+    <script src="js/Tile.js"></script>
+	
+	<script src="./LUT.js"></script>
+</head>
+<body>
+    <script id="vs" type="x-shader/x-vertex">
+        uniform mat4 modelView;
+        attribute vec4 vPosition;
+        attribute vec2 vTexCoord;
+        varying vec2 texCoord;
+
+        void main(void)
+        {
+			gl_Position = modelView * vPosition;
+			texCoord = vTexCoord;
+        }
+    </script>
+    <script id="fs" type="x-shader/x-fragment">
+        precision mediump float;
+        varying vec2 texCoord;
+        uniform sampler2D colorTable;
+		uniform sampler2D segmentTexture;
+
+        void main(void)
+        {
+			vec4 videoPixel = texture2D(segmentTexture, texCoord);
+			vec4 coloredPixel = texture2D(colorTable, vec2(videoPixel.r, 0.5)).bgra;
+			gl_FragColor = coloredPixel;
+        }
+    </script>
+
+    <canvas id="canvas"></canvas>
+	<div id="info"></div>
+	
+	<script type="text/javascript">
+		var r = new Renderer(
+			'http://127.0.0.1:5501/Scalable-Video-Streaming/VideoViewer/mp4/{vid}/t{lvl}_{y}-{x}.mp4', // videoBasePath: e.g. ../mp4/0/t1_0-0.mp4 for first lowest-res tile
+			["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"], // videos: all replacements of {vid} in basepath
+			LUT["SDO-AIA 171 \u212B"], // colorTableArray
+			25, // fps
+			50, // frameCount
+			512, // tileSize
+			4096 // fullVideoSize
+		);
+		r.start();
+		
+		setInterval(() => document.querySelector('#info').innerText = r.getAvgDecodingTime() + " fps", 200);
+	</script>
+</body>
+</html>
