@@ -11,25 +11,27 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Diagnostics;
 using System.Globalization;
+using System.Runtime.InteropServices;
 
 namespace VideoCreator
 {
     class Program
     {
-        private static readonly int[] SIZES = new[]{ 128, 256, 512, 1024, 2048, 4096 };
+        private static readonly int[] SIZES = new[] { 2048, 4096 };
         private const string DATE_FORMAT = "yyyy_MM_dd__HH_mm_ss_FF";
-        private const string IN_DIR = @"D:\Data\Scalable-Video-Streaming\2h set\bmp";
-        private const string OUT_DIR  = @"D:\Data\Scalable-Video-Streaming\2h set\video";
+        private const string IN_DIR = @"C:\Users\Roman Bolzern\Documents\GitHub\Scalable-Video-Streaming\Viewer\Data\bmp";
+        private const string OUT_DIR = @"C:\Users\Roman Bolzern\Documents\GitHub\Scalable-Video-Streaming\Viewer\Data\video512";
 
         const int MOVIE_LENGTH = 64;
+        const int MOVIE_WIDTH = 512;
 
         static void Main(string[] args)
         {
 
             Stopwatch resizeTimer = Stopwatch.StartNew();
-            ResizeImages(IN_DIR);
+            //ResizeImages(IN_DIR);
             resizeTimer.Stop();
-            
+
             Stopwatch videoTimer = Stopwatch.StartNew();
             CreateVideoTree(IN_DIR, OUT_DIR);
             videoTimer.Stop();
@@ -40,9 +42,11 @@ namespace VideoCreator
             Console.ReadLine();
         }
 
-        static void CreateVideoTree(string directory, string outDirectory, int movieWidth = 128)
+        static void CreateVideoTree(string inDirectory, string outDirectory)
         {
-            if (!Directory.Exists(directory))
+            // TODO: FFMPEG itself is also able to make grayscale videos, to create subvideos (video trees), etc. Could potentially be faster.
+
+            if (!Directory.Exists(inDirectory))
             {
                 throw new ArgumentException();
             }
@@ -51,24 +55,28 @@ namespace VideoCreator
                 Directory.CreateDirectory(outDirectory);
             }
 
-            int nrFiles = Directory.EnumerateFiles(directory).Count();
+            int nrFiles = Directory.EnumerateFiles(inDirectory).Count();
             //int curSize = 128; // 4 * 1024;
 
             Bitmap[] movieFrames = new Bitmap[MOVIE_LENGTH];
             DateTime startTime = DateTime.Now;
 
+            var bmpFiles = Directory.EnumerateFiles(inDirectory).ToArray();
+
+            // TODO: Different buildup. No need to load and convert same image several times...
+
             // RIP complexity
             foreach (int curSize in SIZES)
             {
                 int curOffset = 1;
-                string curDir = Path.Combine(directory, curSize.ToString());
+                string curDir = Path.Combine(inDirectory, curSize.ToString());
                 while (curOffset * MOVIE_LENGTH <= nrFiles)
                 {
                     int frameIndex = 0;
                     int fileIndex = 0;
                     try
                     {
-                        foreach (string file in Directory.EnumerateFiles(directory))
+                        foreach (string file in bmpFiles)
                         {
                             if (fileIndex % curOffset == 0)
                             {
@@ -77,12 +85,15 @@ namespace VideoCreator
                                 {
                                     startTime = DateTime.ParseExact(fileName.Substring(0, DATE_FORMAT.Length), DATE_FORMAT, CultureInfo.InvariantCulture);
                                 }
-                                movieFrames[frameIndex] = Accord.Imaging.Image.FromFile(curSize == 4096 ? file : Path.Combine(curDir, $"{fileName}_{curSize}.bmp"));
+                                var fname = curSize == 4096 ? file : Path.Combine(curDir, $"{fileName}_{curSize}.bmp");
+                                //movieFrames[frameIndex] = Accord.Imaging.Image.FromFile(fname);
+                                Console.WriteLine($"Grayscale conversion: { fileName }_{ curSize }.bmp");
+                                movieFrames[frameIndex] = NewGrayscale(new Bitmap(fname));
                                 frameIndex++;
 
                                 if (frameIndex >= MOVIE_LENGTH)
                                 {
-                                    CreateMovies(movieFrames, movieWidth, curSize, outDirectory, curOffset, startTime);
+                                    CreateMovies(movieFrames, curSize, outDirectory, curOffset, startTime);
                                     frameIndex = 0;
 
                                     for (int i = 0; i < movieFrames.Length; i++)
@@ -98,11 +109,15 @@ namespace VideoCreator
 
                         curOffset *= 2;
                     }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e.Message);
+                    }
                     finally
                     {
                         if (frameIndex != 0)
                         {
-                            for (int i = 0; i <= movieFrames.Length; i++)
+                            for (int i = 0; i < movieFrames.Length; i++)
                             {
                                 movieFrames[i]?.Dispose();
                                 movieFrames[i] = null;
@@ -113,44 +128,46 @@ namespace VideoCreator
             }
         }
 
-        private static void CreateMovies(Bitmap[] movieFrames, int movieWidth, int resolution, string outDirectory, int offset, DateTime startTime)
+        private static void CreateMovies(Bitmap[] movieFrames, int resolution, string outDirectory, int offset, DateTime startTime)
         {
             string outDir = Path.Combine(outDirectory,
                 resolution.ToString(),
                 offset.ToString(),
 
-                startTime.Year.ToString(), 
-                startTime.Month.ToString(), 
-                startTime.Day.ToString(), 
+                startTime.Year.ToString(),
+                startTime.Month.ToString(),
+                startTime.Day.ToString(),
                 startTime.Hour.ToString(),
                 startTime.Minute.ToString(),
                 startTime.Second.ToString(),
 
                 "SDO_AIA_171");
-            if(!Directory.Exists(outDir))
+            if (!Directory.Exists(outDir))
             {
                 Directory.CreateDirectory(outDir);
             }
 
-            int slizes = resolution / movieWidth;
+            int slizes = resolution / MOVIE_WIDTH;
 
-            for(int x = 0; x < slizes; x++)
+            for (int x = 0; x < slizes; x++)
             {
-                for(int y = 0; y < slizes; y++)
+                for (int y = 0; y < slizes; y++)
                 {
                     // ToDo: DAte info also as folder Hierarchy?
                     using (VideoFileWriter video = new VideoFileWriter())
                     {
-                        video.Open(Path.Combine(outDir, $"{startTime.ToString("FF")}__{x}_{y}.mp4"), movieWidth, movieWidth, 32, VideoCodec.H264, 1024 * 1024);
-                        Rectangle region = new Rectangle(x * movieWidth, y * movieWidth, movieWidth, movieWidth);
+                        video.Open(Path.Combine(outDir, $"{startTime.ToString("FF")}__{x}_{y}.mp4"), MOVIE_WIDTH, MOVIE_WIDTH, 32, VideoCodec.H264, 1024 * 1024);
+                        Rectangle region = new Rectangle(x * MOVIE_WIDTH, y * MOVIE_WIDTH, MOVIE_WIDTH, MOVIE_WIDTH);
 
                         for (int i = 0; i < movieFrames.Length; i++)
                         {
                             using (Bitmap frame = movieFrames[i].Clone(region, movieFrames[i].PixelFormat))
                             {
+                                //Console.Write(i + ",");
                                 video.WriteVideoFrame(frame);
                             }
                         }
+                        //Console.WriteLine();
 
                         video.Flush();
                     }
@@ -160,31 +177,31 @@ namespace VideoCreator
 
         static void ResizeImages(string directory)
         {
-            if(!Directory.Exists(directory))
+            if (!Directory.Exists(directory))
             {
                 throw new ArgumentException();
             }
 
-            foreach(int size in SIZES)
+            foreach (int size in SIZES)
             {
                 string dir = Path.Combine(directory, size.ToString());
-                if(!Directory.Exists(dir))
+                if (!Directory.Exists(dir))
                 {
                     Directory.CreateDirectory(dir);
                 }
             }
 
             int counter = 0;
-            foreach(var file in Directory.EnumerateFiles(directory))
+            foreach (var file in Directory.EnumerateFiles(directory))
             {
                 if (!String.Equals(".bmp", Path.GetExtension(file), StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
-                
+
                 string filename = Path.GetFileNameWithoutExtension(file);
 
-                foreach(int size in SIZES)
+                foreach (int size in SIZES)
                 {
                     string smallDirectory = Path.Combine(directory, size.ToString());
                     string smallFileName = Path.Combine(smallDirectory, $"{filename}_{size}.bmp");
@@ -193,7 +210,7 @@ namespace VideoCreator
                     {
                         using (var image = new ImageMagick.MagickImage(file))
                         {
-                            if(image.Width != size)
+                            if (image.Width != size)
                             {
                                 image.Resize(size, size);
 
@@ -212,112 +229,71 @@ namespace VideoCreator
                 }
                 counter++;
 
-                if(counter % 64 == 0)
+                if (counter % 64 == 0)
                 {
                     Console.WriteLine(counter);
                 }
             }
         }
 
-        /// <summary>
-        /// Resize the image to the specified width and height.
-        /// </summary>
-        /// <param name="image">The image to resize.</param>
-        /// <param name="width">The width to resize to.</param>
-        /// <param name="height">The height to resize to.</param>
-        /// <returns>The resized image.</returns>
-        public static Bitmap ResizeImage(Bitmap image, int width, int height)
+        public unsafe static Bitmap NewGrayscale(Bitmap original)
         {
-            // taken from https://stackoverflow.com/questions/1922040/resize-an-image-c-sharp/24199315#24199315
-            var destRect = new Rectangle(0, 0, width, height);
-            var destImage = new Bitmap(width, height);
+            // https://stackoverflow.com/questions/12168654/image-processing-with-lockbits-alternative-to-getpixel
+            Rectangle rect = new Rectangle(0, 0, original.Width, original.Height);
+            BitmapData data = original.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
 
-            destImage.SetResolution(image.HorizontalResolution, image.VerticalResolution);
+            //declare an array to hold the bytes of the bitmap
+            int numBytes = data.Width * original.Height;
+            //byte[] bytes = new byte[numBytes];
+            //copy the RGB values into the array
 
-            using (var graphics = Graphics.FromImage(destImage))
+            // read every 3rd byte
+            int skip = data.Stride / data.Width;
+            int sizeOrig = original.Width * original.Height;
+
+            //for (int i = 0; i < sizeOrig; i++)
+            //    Marshal.Copy(IntPtr.Add(ptr, i * skip), bytes, i, 1);
+
+            byte* pSource = (byte*)data.Scan0;
+
+            // Copy the specified number of bytes from source to target.
+            /*for (int i = 0; i < sizeOrig; i++, pSource+=4)
+                bytes[i] = *pSource;
+
+            original.UnlockBits(data);*/
+
+
+            Bitmap grayBmp = new Bitmap(original.Width, original.Height, PixelFormat.Format8bppIndexed);
+            Rectangle grayRect = new Rectangle(0, 0, grayBmp.Width, grayBmp.Height);
+            BitmapData grayData = grayBmp.LockBits(grayRect, ImageLockMode.ReadWrite, grayBmp.PixelFormat);
+            IntPtr grayPtr = grayData.Scan0;
+            //int grayBytes = grayData.Stride * grayBmp.Height;
+
+            ColorPalette pal = grayBmp.Palette;
+
+            for (int g = 0; g < 256; g++)
             {
-                graphics.CompositingMode = CompositingMode.SourceCopy;
-                graphics.CompositingQuality = CompositingQuality.HighQuality;
-                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                graphics.SmoothingMode = SmoothingMode.HighQuality;
-                graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-
-                using (var wrapMode = new ImageAttributes())
-                {
-                    wrapMode.SetWrapMode(WrapMode.TileFlipXY);
-                    graphics.DrawImage(image, destRect, 0, 0, image.Width, image.Height, GraphicsUnit.Pixel, wrapMode);
-                }
+                pal.Entries[g] = Color.FromArgb(g, g, g);
             }
 
-            return destImage;
-        }
+            grayBmp.Palette = pal;
 
-
-
-        static void Test()
-        {
-            string smallDirectory = Path.Combine(IN_DIR, "small");
-            if (!Directory.Exists(smallDirectory))
+            // copy generated grayscale pixels into new grayscale bitmap
+            byte* pDest = (byte*)grayData.Scan0;
+            for (int i = 0; i < sizeOrig; i++, pSource += 4, pDest++)
             {
-                Directory.CreateDirectory(smallDirectory);
+                //bytes[i] = *pSource;
+                *pDest = *pSource;
             }
 
-            VideoFileWriter video = new VideoFileWriter();
-            //video.Open("test.mp4", 4 * 1024, 4 * 1024, 30, VideoCodec.MPEG4);
-            //video.Open("test2.mp4", 4 * 1024, 4 * 1024, 30, VideoCodec.H264, 1 * 1024 * 1024);
-            video.Open("test4.mp4", 128, 128, 30, VideoCodec.H264, 1024 * 1024);
+            original.UnlockBits(data);
 
-            Stopwatch elapsedTime = Stopwatch.StartNew();
 
-            int frames = 0;
 
-            foreach (var file in Directory.EnumerateFiles(IN_DIR))
-            {
-                if (!String.Equals(".bmp", Path.GetExtension(file), StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
+            //Marshal.Copy(bytes, 0, grayPtr, grayBytes);
 
-                string filename = Path.GetFileNameWithoutExtension(file);
-                string smallFileName = Path.Combine(smallDirectory, filename + "_small.bmp");
-
-                if (!File.Exists(smallFileName))
-                {
-                    var test = new ImageMagick.MagickImage(file);
-
-                    using (Bitmap frame = Image.FromFile(file) as Bitmap)
-                    {
-                        test.Resize(128, 128);
-
-                        //Bitmap small = ResizeImage(frame, 1024, 1024);
-
-                        //Bitmap small = frame.Clone(new Rectangle(512, 1964, 1024, 1024), PixelFormat.Format8bppIndexed);
-
-                        //Bitmap small = new Bitmap(frame, 1024, 1024);
-                        Bitmap small = test.ToBitmap(ImageFormat.Bmp);
-                        small.Save(smallFileName, ImageFormat.Bmp);
-                        video.WriteVideoFrame(small);
-                    }
-                }
-                else
-                {
-                    Bitmap small = Image.FromFile(smallFileName) as Bitmap;
-                    video.WriteVideoFrame(small);
-                }
-
-                //Bitmap frame = Image.FromFile(file) as Bitmap;
-                //video.WriteVideoFrame(frame);
-
-                frames++;
-            }
-
-            video.Flush();
-            video.Close();
-
-            elapsedTime.Stop();
-
-            Console.WriteLine($"Created Video in {elapsedTime.Elapsed} seconds");
-            Console.ReadLine();
+            grayBmp.UnlockBits(grayData);
+            return grayBmp;
         }
     }
 }

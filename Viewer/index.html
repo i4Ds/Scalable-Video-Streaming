@@ -1,0 +1,295 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <title>HelioStreamer POC</title>
+    <script src="lib/jquery-3.2.1.min.js"></script>
+    <script src="lib/three.js"></script>
+    <script src="lib/three/Detector.js"></script>
+    <script src="lib/three/TrackballControls.js"></script>
+    <script src="js/VideoTile.js"></script>
+    <script src="lib/three/UpdatableTexture.js"></script>
+    <script src="lib/three/UpdatableDataTexture.js"></script>
+    <script src="lib/three/UpdatableVideoTexture.js"></script>
+    <script src="js/WebGLPlayer.js"></script>
+    <script src="lib/stats.min.js"></script>
+    <style>
+        body {
+            background: black;
+            margin: 0px;
+            /*overflow: hidden;*/
+        }
+
+        #info {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 150px;
+            background-color: rgba(128, 128, 128, 0.5);
+            color: white;
+            font-size: 12px;
+            z-index: 10000;
+        }
+
+        #container {
+        }
+
+        #videoContainer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 10;
+            width: 4096px;
+            height: 4096px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div id="videoContainer" style="display:none;">
+
+    </div>
+    <div id="info">
+        <select id="resolutionDropdown">
+            <option value="8">4096x4096</option>
+            <option value="4">2048x2048</option>
+            <option value="2" selected>1024x1024</option>
+            <option value="1">512x512</option>
+        </select>
+        <br />
+        <select id="modeDropdown" disabled="disabled">
+            <option>1bigTexture</option>
+            <option>64spheres</option>
+        </select>
+        <br />
+        <span id="modeInfo64spheres" class="modeInfos">Renders a scene with 64 spheres with one THREE.VideoTexture on each, rendering (and draw calling) 64 video textures each frame. Only one sphere has a medium vertex count, the others low.</span>
+        <span id="modeInfo1bigTexture" class="modeInfos">Renders all video frames onto one large 4096x4096 canvas, then updates the sphere with this texture. One draw call, but with large texture.</span>
+        <br />
+        <br />
+        <span id="renderStats"></span>
+        <br />
+        Sync videos: <input id="syncVideos" type="checkbox" checked="checked"/><br />        
+        Playback rate: <input id="playbackRate" type="number" value="1.0" style="width: 40px;" width="40"/><br />
+        No DOM updates: <input id="noDom" type="checkbox" /><br />
+        Load videos into container: <input id="showVideoContainer" type="checkbox" />
+    </div>
+</body>
+</html>
+<script type="text/javascript">
+
+    /*window.onerror = function (err) {
+        alert(err);
+    };*/
+
+    var baseUrl = "videos/4096/1/";
+    var player;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // create videos
+        var videos = [];
+        var videosLoaded = 0;
+        for (var y = 0; y < 8; y++) {
+            for (var x = 0; x < 8; x++) {
+                /*var v = $('<video></video>');
+                $('#videoContainer').append(v);*/
+
+                var vt = new VideoTile();
+                vt.addEventListener('ready', function () {
+                    // Video is loaded and can be played
+                    videosLoaded++;
+                    if (videosLoaded == 64) {
+                        // play all
+                        videos.forEach(function (vid) {
+                            vid.element.play();
+                        });
+                        var mode = getMode(false);
+                        player = new WebGLPlayer(videos, mode);
+                        player.animate();
+                    }
+                }, { once: true });
+                vt.fetch(baseUrl + '2017/9/11/0/0/9/SDO_AIA_171/35__' + x + '_' + y + '.mp4');
+                videos.push(vt);
+            }
+        }
+
+        // autoplay for Android
+        /*window.addEventListener('touchstart', function videoStart() {
+            for (var v = 0; v < videos.length; v++)
+                videos[v].play();
+            console.log('first touch');
+            // remove from the window and call the function we are removing
+            this.removeEventListener('touchstart', videoStart);
+        });*/
+
+        var showModeInfo = function (mode) {
+            $('.modeInfos').css('display', 'none');
+            $('#modeInfo' + mode).css('display', '');
+            $('#modeDropdown').val(mode);
+        }
+        $('#modeDropdown').change(function (ev) {
+            var mode = getMode(false);
+            showModeInfo(mode);
+            player.setMode(mode);
+        });
+        var mode = getMode(true);
+        showModeInfo(mode);
+
+
+        $('#showVideoContainer').change(function () {
+            var vc = $('#videoContainer');
+            videos.forEach(function (v) {
+                vc.append(v.element);
+            });
+            vc.css('display', this.checked ? 'block' : 'none');
+        });
+
+        $('#playbackRate').change(function () {
+            var val = parseFloat($(this).val())
+            player.videoTexture.initRender();
+            videos.forEach(function (v) {
+                v.element.pause();
+                v.element.playbackRate = val;
+                v.element.play();
+            });
+        });
+
+        $('#resolutionDropdown').change(function () {
+            var res = parseInt($('#resolutionDropdown').val());
+            player.videoTexture.initRender();
+        });
+
+
+        /*var canvas = document.getElementById('c');
+        var context = canvas.getContext('2d');
+
+        v.addEventListener('play', function () {
+            draw(this, context);
+        }, false);*/
+
+    }, false);
+
+    /*function draw(v, c) {
+        if (v.paused || v.ended) return false;
+        c.drawImage(v, 0, 0, 512, 512);
+        // Grab the pixel data from the backing canvas
+        var idata = c.getImageData(0, 0, 512, 512);
+        var data = idata.data;
+        setTimeout(draw, 20, v, c);
+    }*/
+
+    function tryMSE() {
+        var videoUrl = baseUrl + '2017/9/11/0/0/9/SDO_AIA_171/35__' + 0 + '_' + 0 + '.mp4';
+        var mime = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
+        var mediaSource = new MediaSource();
+        var sourceBuffer = mediaSource.addSourceBuffer(mime);
+        fetch(videoUrl)
+            .then(function (response) {
+                return response.arrayBuffer();
+            })
+            .then(function (arrayBuffer) {
+                console.log(arrayBuffer);
+                sourceBuffer.addEventListener('updateend', function (e) {
+                    if (!sourceBuffer.updating && mediaSource.readyState === 'open') {
+                        mediaSource.endOfStream();
+                    }
+                });
+                sourceBuffer.appendBuffer(arrayBuffer);
+            });
+
+        /*if (window.MediaSource) {
+            var mediaSource = new MediaSource();
+            vidSrc = URL.createObjectURL(mediaSource);
+            mediaSource.addEventListener('sourceopen', sourceOpen);
+        } else {
+            console.log("The Media Source Extensions API is not supported.")
+        }*/
+    }
+
+    function sourceOpen(e) {
+        console.log('sourceOpen');
+        URL.revokeObjectURL(vidSrc);
+        var mime = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
+        var mediaSource = e.target;
+        var sourceBuffer = mediaSource.addSourceBuffer(mime);
+        var videoUrl = baseUrl + '2017/9/11/0/0/9/SDO_AIA_171/35__' + 0 + '_' + 0 + '.mp4';
+        fetch(videoUrl)
+            .then(function (response) {
+                return response.arrayBuffer();
+            })
+            .then(function (arrayBuffer) {
+                sourceBuffer.addEventListener('updateend', function (e) {
+                    if (!sourceBuffer.updating && mediaSource.readyState === 'open') {
+                        mediaSource.endOfStream();
+                    }
+                });
+                sourceBuffer.appendBuffer(arrayBuffer);
+            });
+    }
+
+    /*var assetURL = '/Data/video512/512/1/2017/9/11/0/0/9/SDO_AIA_171/35__0_0.mp4';
+    // Need to be specific for Blink regarding codecs
+    // ./mp4info frag_bunny.mp4 | grep Codec
+    var mimeCodec = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
+
+    if ('MediaSource' in window && MediaSource.isTypeSupported(mimeCodec)) {
+        var mediaSource = new MediaSource();
+        //console.log(mediaSource.readyState); // closed
+        video.src = URL.createObjectURL(mediaSource);
+        mediaSource.addEventListener('sourceopen', sourceOpen);
+    } else {
+        console.error('Unsupported MIME type or codec: ', mimeCodec);
+    }
+
+
+
+    function sourceOpen(_) {
+        //console.log(this.readyState); // open
+        var mediaSource = this;
+        var sourceBuffer = mediaSource.addSourceBuffer(mimeCodec);
+        fetchAB(assetURL, function (buf) {
+            sourceBuffer.addEventListener('updateend', function (_) {
+                console.log(mediaSource.readyState);
+                //if (mediaSource.readyState != 'ended') mediaSource.endOfStream();
+                video.play();
+                //console.log(mediaSource.readyState); // ended
+            });
+            sourceBuffer.appendBuffer(new Uint8Array(buf));
+            //mediaSource.endOfStream();
+        });
+    };
+
+    function fetchAB(url, cb) {
+        console.log(url);
+        var xhr = new XMLHttpRequest;
+        xhr.open('get', url);
+        xhr.responseType = 'arraybuffer';
+        xhr.onload = function () {
+            cb(xhr.response);
+        };
+        xhr.send();
+    };*/
+
+    function getMode(withURL) {
+        var urlParam = getUrlParameter('mode');
+        if (urlParam !== undefined && withURL) return urlParam;
+        return $('#modeDropdown').val();
+    }
+
+    var getUrlParameter = function getUrlParameter(sParam) {
+        var sPageURL = decodeURIComponent(window.location.search.substring(1)),
+            sURLVariables = sPageURL.split('&'),
+            sParameterName,
+            i;
+
+        for (i = 0; i < sURLVariables.length; i++) {
+            sParameterName = sURLVariables[i].split('=');
+
+            if (sParameterName[0] === sParam) {
+                return sParameterName[1] === undefined ? true : sParameterName[1];
+            }
+        }
+    };
+</script>
