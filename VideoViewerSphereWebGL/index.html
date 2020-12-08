@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>WebGL Sun</title>
+	<style>
+		body { margin: 0; overflow: hidden; background-color: #000; }
+		.tm  { position: absolute; top: 10px; right: 10px; }
+		.webgl-error { font: 15px/30px monospace; text-align: center; color: #fff; margin: 50px; }
+		.webgl-error a { color: #fff; }
+	</style>
+	<!-- <link rel="preload" as="video" href="/three.js/sun/movies/0/t1_0-0.mp4" type="video/mp4" crossorigin="anonymous" />
+	<link rel="preload" as="video" href="/three.js/sun/movies/1/t1_0-0.mp4" type="video/mp4" crossorigin="anonymous" />
+	<link rel="preload" as="video" href="/three.js/sun/movies/2/t1_0-0.mp4" type="video/mp4" crossorigin="anonymous" />
+	<link rel="preload" as="video" href="/three.js/sun/movies/3/t1_0-0.mp4" type="video/mp4" crossorigin="anonymous" /> -->
+</head>
+<body>
+
+	<video id="video" type='video/mp4' crossOrigin="anonymous" playsinline style="display:none" preload="auto">
+		<!-- <source src="/three.js/sun/images/sun_test1.mp4" type="video/mp4"> -->
+	</video>
+
+	<div id="webgl"></div>
+
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r120/three.min.js"></script>
+	<script src="js/Detector.js"></script>		
+	<script src="js/TrackballControls.js"></script>
+	<script src="js/video_controller.js"></script>	
+	<script src="js/sun.js"></script>  
+</body>
+</html>
